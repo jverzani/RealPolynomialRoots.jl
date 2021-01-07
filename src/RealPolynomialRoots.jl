@@ -15,7 +15,7 @@ include("realroots.jl")
 # clean up
 export Interval, State, anewdsc, nextstep!, upperbound, lowerbound, admissiblepoint
 export descartesbound, arbL
-export linearstep, poly_shift, zerotest, onetest
+export linearstep, poly_shift, zerotest, onetest, boundarytest, newtontest
    
 
 

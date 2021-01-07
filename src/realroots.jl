@@ -1,21 +1,14 @@
-
-
 ## Find real roots of a polynomial using a DesCartes Method
 ##
-## State of the art for this approach is summarized here:
-## Cf. "Computing Real Roots of Real Polynomials ... and now For Real!" by Alexander Kobel, Fabrice Rouillier, Michael Rouillier
+## From "Computing Real Roots of Real Polynomials ... and now For Real!" by Alexander Kobel, Fabrice Rouillier, Michael Rouillier
 ## (https://arxiv.org/abs/1605.00410) 
 ## 
 ## Earlier work of a Descartes-like method  [Vincent's theorem](http://en.wikipedia.org/wiki/Vincent's_theorem)
 ## are here "Efficient isolation of polynomial’s real roots" by
 ## Fabrice Rouillier; Paul Zimmermann
 ##
-## This implementation doesn't take nearly enough care with the details, but takes some ideas
-## to implement a means to find real roots of non-pathological polynomials (lowish degree, roots separated)
 ##
-## XXX Needs work XXX
-
-## Polynomial transformations
+## This still needs some engineering for performance
 ##
 ## The Taylor shift here is the most expensive operation
 ## https://arxiv.org/pdf/1605.00410.pdf has a better strategy
@@ -23,9 +16,13 @@
 ## 
 
 
-#Polynomials.degree(p::Vector{T}) where {T} = findlast(!iszero,p) - 1
-
+## our Intervals are of type ArbFloat{L} for possibly
+## different Ls. This ensures promotion to largest L
 _promote(x,y) = promote(x,y)
+_promote(x::Int, y::Int) = (ArbFloat{64}(x),ArbFloat{64}(y))
+_promote(x::Int, y::ArbFloat{L}) where {L} = (ArbFloat{L}(x),ArbFloat{L}(y))
+_promote(x::ArbFloat{L}, y::Int) where {L} = (ArbFloat{L}(x),ArbFloat{L}(y))
+
 function _promote(x::Float64, y::Float64)
     (ArbFloat{64}(x),ArbFloat{64}(y))
 end
@@ -45,15 +42,17 @@ end
 function _promote(x::ArbFloat, y::BigFloat)
     (big(x), y)
 end
-    
+
+"same as ArbNumerics.workingprecision"
 arbL(x::ArbFloat{L}) where {L} = L
 
 
+## We consider intervals [a,b] with a,b of type ArbFloat{L}
 ## Interval with [a,b], N
 ## N is for Newton-Test
-struct Interval{T,S}
+struct Interval{T}
     a::T
-    b::S
+    b::T
     N::Base.Ref{Int}
     bnd::Base.Ref{Int}
 end
@@ -210,65 +209,22 @@ end
 
 
 ## Descartes Bounds
-
-" Descartes bound on (0,oo). Just count sign changes"
-# function descartes_bound(p::Vector{T}) where {T}
-#     length(p) == 0 && return -1
-#     cnt, sgn = 0, sign(p[1])
-#     for i in 2:length(p)
-#         nsgn = sign(p[i])
-#         if nsgn * sgn < 0
-#             sgn = nsgn
-#             cnt += 1
-#         end
-#     end
-#     cnt
-# end
-
-# function sgn(I::IntervalArithmetic.Interval{T}) where {T}
-#     z = zero(T)
-#     z < I && return 1
-#     z > I && return -1
-#     (I.hi-I.lo) <= 1000*sqrt(eps(T)) && return 0
-#     return nothing #  sentinel
-# end
 sgn(p) = sign(p)
 
 function sgn(p::T) where {L, T <: ArbFloat{L}}
-    τ = 100/(T(2)^L)
+    τ = 1/(T(2)^L)
     p <= -τ && return -1
     p >=  τ && return 1
     return nothing
 end
 
 
-function descartes_count(ps)
-    cnt = -1
-    s = 0
-    for pᵢ in ps
-        sᵢ = sgn(pᵢ)
-        #        @show pᵢ, sᵢ, eps(eltype(pᵢ))
-        sᵢ === nothing && error("increase precision")
-        iszero(sᵢ) && continue
-        if sᵢ != s
-            s = sᵢ
-            cnt += 1
-        end
-    end
-    cnt
-end
 
-function descartesbound(st::State, I::Interval{T,T}) where {T}
+function descartesbound(st::State, I::Interval{T}) where {T}
     bnd = I.bnd[]
     bnd != -2 && return bnd
 
-    
-#    bnd = descartesbound(collect(T, st.p), T(I.a), T(I.b))  ## DOUBLE XXX
-    
-    L = arbL(I.a)
-    TT = ArbFloat{2L}
-    
-    bnd = descartesbound(collect(TT, st.p), TT(I.a), TT(I.b))  ## DOUBLE XXX
+    bnd = descartesbound(collect(T, st.p), T(I.a), T(I.b))
     I.bnd[] = bnd
     bnd
 end
@@ -293,68 +249,8 @@ function descartesbound(q)
 end
     
 
-# split interval if not precise enough?
-# function descartes_bound(p::Vector{T}, S=T) where {T}
-#     ϵ = sqrt(eps(S))
-#     qs = [IntervalArithmetic.Interval(pᵢ-ϵ, pᵢ+ϵ) for pᵢ in p]
-#     descartes_count(qs)
-# end
-# function descartes_bound(p::Vector{T}, a, b, S=T) where {T}
-
-#     # should not have degree(p) <= 1
-#     ϵ = sqrt(eps(S))
-#     qs = [IntervalArithmetic.Interval(pᵢ-ϵ, pᵢ+ϵ) for pᵢ in p]
-#     descartes_count(poly_shift(qs, a, b))
-# end
-
-" Descartes bound on (a, b)"
-#descartes_bound(p::Vector{T}, a, b) where {T} = descartes_bound(poly_shift(p, a, b))
-function DescartesBound(st, node)
-    bnd::Int = node.bnd[]
-    bnd != -2 && return bnd # already done if not -2
-    
-    bnd = descartes_bound(st.p, node.a, node.b)
-    node.bnd[] = bnd
-    bnd
-end
-
-## Tests
-
-## Return true or false
-zero_test(st::State, node)::Bool  =   DescartesBound(st, node) == 0 
-one_test(st::State, node)::Bool  =   DescartesBound(st, node) == 1  
-
-## return count -1 (can't tell), 0, 1, or more
-zero_one_test(st::State, node) = DescartesBound(st, node)  
-
-
-# find admissible point
-# XXX improve me
-# function find_admissible_point(st::State{T},  I::Interval, m=midpoint(I), Ni::T=one(T), c::T=one(T)) where {T}
-#     N = ceil(Int, Float64(Polynomials.degree(st.p)/2))
-#     ep = min(m-I.a, I.b - m) / (4*Ni)
-#     mis = [m + i/N * ep for i in -N:N]
-#     curmin = min(norm(st(I.a)), norm(st(I.b)))/100
-#     for m in mis #shuffle(mis)
-#         (m < I.b || m > I.a) || continue
-#         descartes_bound(st.p, I.a, m) == -1 && continue
-#         descartes_bound(st.p, m, I.b) == -1 && continue        
-#         norm(st(m)) > 0 && return m
-#     end
-#     @show I
-#     error("No admissible point found")
-# #    mx, i = findmax(norm.(st.p.(mis)))
-# #    mis[i]
-# end
-
-# n = degree of P
-# n′ = ceil(n/2)
-# var(P, I1) + var(P, I2) ≤ var(P, I)
-
 # identify 2^(tₐ-1) <= y < t^(tₐ)
 tₐ(y) = ceil(Int, log2(abs(y)))
-
-M(z) = max(1, abs(z))
 
 # m[ϵ] evenly spaced points in B(x,ϵ)
 function multipoint(m, ϵ, n′)
@@ -370,7 +266,7 @@ function admissiblepoint(p, m::ArbFloat{LL}, ϵ, n) where {LL}
     L = LL
     for i in 1:10
         T = ArbFloat{L}
-        tol = 2*2*4/T(2.0)^L
+        tol = 4/T(2.0)^L 
         mx, vx = zero(T), zero(T)
         for mᵢ in multipoint(T(m), T(ϵ), n)
             vᵢ = abs(evalpoly(mᵢ, p))
@@ -384,8 +280,10 @@ function admissiblepoint(p, m::ArbFloat{LL}, ϵ, n) where {LL}
     return nothing
 end
 
-function zerotest(st::State, I::Interval{T₀,T₀}, R=T₀) where {T₀}
+function zerotest(st::State, I::Interval{T₀}, R=T₀) where {T₀}
 
+    iszero(I.bnd[]) && !isbracket(st, I) && return true
+    
     a,b = I.a, I.b
     p = R == T₀ ? st.p : R(st.p)
     pa, pb = evalpoly(R(a), p), evalpoly(R(b), p)
@@ -399,7 +297,7 @@ function zerotest(st::State, I::Interval{T₀,T₀}, R=T₀) where {T₀}
     wI = b - a
     mI = a + wI/2
     mIa = admissiblepoint(p, mI, wI/8, n′)
-    T = ArbFloat{2*2^(ceil(Int, log2(L)))}
+    T = ArbFloat{2^(ceil(Int, log2(L)))}
 
     q = collect(T,p)
     dl = descartesbound(q, T(a), T(mI))
@@ -414,7 +312,7 @@ end
 isbracket(st::State, I) = isbracket(st.p, I)
 isbracket(p, I) = sign(evalpoly(I.a,p)) * sign(evalpoly(I.b,p)) <= 0
 
-function onetest(st, I::Interval{T₀,T₀}, R=T₀)  where {T₀}
+function onetest(st, I::Interval{T₀}, R=T₀)  where {T₀}
 
     p = R == T₀ ? st.p : R.(st.p)    
     a, b = R(I.a), R.(I.b)
@@ -427,18 +325,19 @@ function onetest(st, I::Interval{T₀,T₀}, R=T₀)  where {T₀}
     mstar = admissiblepoint(p, a + (b-a)/2, ϵ, n)
     t = tₐ(evalpoly(mstar, p))
 
-    L = 2max(24,  arbL(a), max(1, -min(ta-1, tb-1, t-1) + 4n+2)) ## need 2 here for mignotte(31,14)
+    L = max(24,  arbL(a), max(1, -min(ta-1, tb-1, t-1) + 4n+2)) 
     T = ArbFloat{2^(ceil(Int, log2(L)))}
 
     Ia, Ib = Interval(T(a), T(mstar)), Interval(T(mstar), T(b))
-    zta, ztb = zerotest(st, Ia, T) && !isbracket(st, Ia), zerotest(st, Ib, T) && !isbracket(st, Ib)
+    #zta, ztb = zerotest(st, Ia, T) && !isbracket(st, Ia), zerotest(st, Ib, T) && !isbracket(st, Ib)
+    zta, ztb = zerotest(st, Ia, T), zerotest(st, Ib, T)
     zta && Ib.bnd[] == 1 && isbracket(p, Ib) && return (true, Ib)
     ztb && Ia.bnd[] == 1 && isbracket(p, Ia) && return (true, Ia)    
     
     return (false, Interval(a, b, I.N[], Ia.bnd[] + Ib.bnd[]))
 end
 
-function boundarytest(st, node)
+function boundarytest(st, node::Interval{T}) where {T}
     a, b, m, w  = node.a, node.b, midpoint(node), width(node)
     p = st.p
     n = length(p)-1
@@ -446,21 +345,21 @@ function boundarytest(st, node)
     N::Int = node.N[]
     wI = b - a
     mₗ, mᵣ = a + wI/(2N), b - wI/(2N)
-    ϵ = 1/2^(2 + ceil(Int, log(n)))
+    ϵ = 1/T(2)^(2 + ceil(Int, log(n)))
 
     mₗ⁺, mᵣ⁺ = admissiblepoint(p, mₗ, ϵ*wI/N, n′), admissiblepoint(p, mᵣ, ϵ*wI/N, n′)
     a < mₗ⁺ <= mᵣ⁺ < b || return (false, node)
 
-    Iₗ, Iᵣ = Interval(a, mₗ⁺), Interval(mᵣ⁺, b)
+    Iₗ, Iᵣ = Interval(mₗ⁺, b), Interval(a, mᵣ⁺)
     zₗ, zᵣ = zerotest(st, Iₗ), zerotest(st, Iᵣ)
 
     ##
     zₗ && isbracket(st, Iₗ) && @show :huh, Iₗ
     zᵣ && isbracket(st, Iᵣ) && @show :huh, Iᵣ
     
-    zₗ && zᵣ && return (true, Interval(mₗ⁺, mᵣ⁺, N, node.bnd[]))
-    zₗ && return (true, Interval(mₗ⁺, b, N, node.bnd[]))
-    zᵣ && return (true, Interval(a, mᵣ⁺, N, node.bnd[]))
+    zₗ && zᵣ && return (true, Interval(mₗ⁺, mᵣ⁺, N, 0))
+    zₗ && return (true, Interval(a, mₗ⁺))
+    zᵣ && return (true, Interval(mᵣ⁺, b))
     (false, node)
 
 end
@@ -492,7 +391,6 @@ function newtontest(st, node)
         for i in (1,2,3)
             for j in (i+1):3
                 # (25)
-                #@show vs[i], vs[j], wI
                 abs(vs[i]) > wI && abs(vs[j]) > wI && continue
                 abs(vs[i] - vs[j]) < wI/(4n) && continue
                 
@@ -510,7 +408,6 @@ function newtontest(st, node)
                     b⁺ᵢⱼ = (bᵢⱼ == a) ? bᵢⱼ : admissiblepoint(p, bᵢⱼ, ϵ * wI/(4N), n)
                     (!zerotest(st, Interval(b⁺ᵢⱼ, b)) || isbracket(st, Interval(b⁺ᵢⱼ, b))) && continue                    
                     
-                    ### XXXreturn true, Interval(a⁺ᵢⱼ, b⁺ᵢⱼ, N^2, bnd)
                     return true, Interval(a⁺ᵢⱼ, b⁺ᵢⱼ, N*2, bnd)
 
                 end
@@ -523,7 +420,7 @@ function newtontest(st, node)
 end
 
 
-function linearstep(st, node::Interval{T,T}) where {L, T<:ArbFloat{L}}
+function linearstep(st, node::Interval{T}) where {L, T<:ArbFloat{L}}
     a, b, N, bnd = node.a, node.b, node.N[], node.bnd[]
     p = st.p
     n = length(p) - 1
@@ -534,81 +431,7 @@ function linearstep(st, node::Interval{T,T}) where {L, T<:ArbFloat{L}}
     I1, I2 = Interval(a, mstar, N′), Interval(mstar, b, N′)    
     I1, I2
 end
-#-0.853490346223, -0.0131314098584
-# find splitting point
-# find an admissible point that can be used to split interval. Needs to have all
-# coefficients not straddle 0
-# return (logical, two intervals)
-# function split_interval(st::State{T},I::Interval,  m=midpoint(I), Ni=one(T), c=one(T)) where {T}
-#     N = ceil(Int, Float64(Polynomials.degree(st.p)/2))
-#     ep = min(1, width(I)) / (16*Ni)
-#     mis = T[m + i/N * ep for i in -N:N]
-#     mis = filter(m -> m > I.a && m < I.b, mis)
-#     mx, i = findmax(norm.(st.(mis)))
 
-#     ## Now, we need a point that is bigger than max and leaves conclusive
-#     for i in eachindex(mis)
-#         mi = mis[i]
-#         abs(st(mi)) >= min(mx/4, one(T)) || continue
-#         ileft = Interval(I.a, mi, I.N[], -2)
-#         nl = DescartesBound(st, ileft)
-#         #nl = descartes_bound(fatten(st.p), ileft.a, ileft.b)                
-#         nl == -1 && continue
-#         iright = Interval(mi, I.b, I.N[], -2)
-#         nr = DescartesBound(st, iright)
-#         #nr = descartes_bound(fatten(st.p), iright.a, iright.b)                        
-#         nr == -1 && continue
-
-#         # identify degenerate cases here. This is not good.
-# #        if nl + nr < I.bnd[]
-# #            @warn "possible numeric issue; increase precision?"
-# #        end
-        
-#         ileft.bnd[] = nl; iright.bnd[] = nr
-
-        
-#         return (true, ileft, iright)
-#     end
-#     #    println("DEBUG: $I is a bad interval for splitting?")
-#     return (false, I, I)
-# end
-
-
-# ## split interval
-# ## adds to intervals if successful
-# ## adds node to Unresolved if not
-# function linear_step(st::State{T}, node) where {T}
-#     succ, I1, I2 = split_interval(st, node)
-
-    
-    
-#     if succ
-#         N::Int = node.N[]
-#         N′ = max(4, round(Int, sqrt(N)))
-#         for I in (I1, I2)
-#             bnd = DescartesBound(st, I)
-#             iszero(bnd) && continue
-#             if bnd == 1
-#                 push!(st.Isol, I)
-#             else 
-#                 I.N[] = N′
-#                 push!(st.Internal, I)
-#             end
-#         end
-
-# #        b0 = node.bnd[]
-# #        b1, b2 = I1.bnd[], I2.bnd[]
-# #        if b0 > b1 + b2
-# #            @show b0, b1, b2
-# #            @show poly_shift(st.p, I1.a, I1.b)
-# #            @show poly_shift(st.p, I2.a, I2.b)
-# #        end
-#     else
-#         push!(st.Unresolved, node)
-#     end
-#     return true
-    
-# end
 
 function nextstep!(st::State, node) 
 
@@ -622,12 +445,11 @@ function nextstep!(st::State, node)
     
     val, J = onetest(st, node)
     if val
-        @show :onetest, node.a, node.b, J.a, J.b
         push!(st.Isol, J)
         return nothing
     end
     
-    for test in (newtontest,)#,  boundarytest)
+    for test in (newtontest,  boundarytest)
         val, I = test(st, node)
         if val
             @show test
@@ -648,165 +470,21 @@ function nextstep!(st::State, node)
     return nothing
 end
 
-
+# assume p is square free
 function anewdsc(p; m=lowerbound(p), M=upperbound(p))
     st = State(p)
     I = Interval(m, M)
+    @show I
     push!(st.Internal, I)
-
     while !isempty(st.Internal)
         I = pop!(st.Internal)
-        #@show :consider, I.a, I.b
         nextstep!(st, I)
     end
     st
+    
 end
         
-
-# ## return (true, I), (false, node)
-# ## I will be smaller interval containing all roots in node
-# function newton_test(st::State{T}, node) where {T}
-#     NMAX = 1024  # 2147483648 = 2^31
-#     (node.N[] > NMAX) && return (false, node) 
-
-#     a, b, m, w  = node.a, node.b, midpoint(node), width(node)
-#     N::Int = node.N[]
-#     bnd::Int = node.bnd[]
-#     p, p′ = st.p, poly_deriv!(copy(st.p))
-
-
-#     wI = (b-a)
-#     ξs = find_admissible_point.((st,), (node,), a .+ (1,2,3) .* (wI/4))
-#     vs = (evalpoly(ξs[1],p)/evalpoly(ξs[1],p′),
-#           evalpoly(ξs[2],p)/evalpoly(ξs[2],p′),
-#           evalpoly(ξs[3],p)/evalpoly(ξs[3],p′))
-#     for i in (1,2,3)
-#         for j in (i+1):3
-#             k̄ = (ξs[j] - ξs[i]) / (vs[i] - vs[j])
-#             λᵢⱼ = ξs[i] + k̄ * vs[i]
-#             a <= λᵢⱼ <= b || continue
-#             lᵢⱼ = floor(Int, Float64((λᵢⱼ - a) * 4 * N / wI))
-#             aᵢⱼ = a + max(0,  lᵢⱼ - 1) * wI / (4N)
-#             bᵢⱼ = a + min(1, (lᵢⱼ + 2)/(4N)) * wI
-#             a⁺ᵢⱼ = (aᵢⱼ == a) ? aᵢⱼ : find_admissible_point(st, node, aᵢⱼ)
-#             b⁺ᵢⱼ = (bᵢⱼ == a) ? bᵢⱼ : find_admissible_point(st, node, bᵢⱼ)
-#             Il = Interval(a, a⁺ᵢⱼ , N, -2)
-#             Ir = Interval(b⁺ᵢⱼ , b, N, -2)
-#             if zero_test(st, Il) &&
-#                 zero_test(st, Ir)
-#                 return (true, Interval(a⁺ᵢⱼ, b⁺ᵢⱼ, N^2, bnd))
-#             end
-#         end
-#     end
-
-               
-#     ## boundary test
-#     mlstar::T = find_admissible_point(st, node, a + wI/(2N))
-#     if mlstar > a && zero_test(st, Interval(mlstar, b, N, -2))
-#         return (true, Interval(a, mlstar, N, bnd))
-#     end
-
-#     mrstar::T = find_admissible_point(st, node, b - w/(2N))
-#     if mrstar < b && zero_test(st, Interval(a, mrstar, N, -2))
-#         return (true, Interval(mrstar, b, N, bnd))
-#     end
-    
-#     return (false, node)
-# end
-
-# ## Add successors to I
-# ## We have
-# function addSucc(st::State{T}, node) where {T}
-
-#     val, I = newton_test(st, node)
-
-#     if val
-# #        @show :newton
-#         push!(st.Internal, I)
-#     else
-# #        @show :linear
-#         succ = linear_step(st, node)
-#         #!succ && @warn("node $node was a failure")
-#     end
-#     true
-# end
-
-# ## m, M should bound the roots
-# ## essentially algorithm 4
-# function ANewDsc(p::Vector{T}, m = lowerbound(p), M=upperbound(p)) where {T <: Real}
-
-#     st = State(p)
-#     base_node = Interval(m, M, 4, -2)    
-#     DescartesBound(st, base_node)
-
-
-#     if base_node.bnd[] == -1
-#         append!(st.Internal, break_up_interval(st, base_node, 4))
-#     else
-#         push!(st.Internal, base_node)
-#     end
-
-#     ctr = 0
-#     while length(st.Internal) > 0
-#         node = pop!(st.Internal)
-#         ctr +=1;
-# #        @show ctr, node
-#         bnd = DescartesBound(st, node) 
-#         if bnd < 0
-#             push!(st.Unresolved, node)
-#             continue
-#         elseif bnd == 0
-#             continue
-#         elseif bnd == 1
-#             push!(st.Isol, node)
-#             continue
-#         else
-#             a, b = node.a, node.b
-#             if abs(a-b) <= degree(p) * sqrt(eps(T))
-#                 push!(st.Unresolved, node)
-#                 continue
-#             else
-#                 addSucc(st, node)
-#             end
-#         end
-
-#         #@show sum(I.bnd[] for I in st.Internal) + length(st.Isol)   
-        
-#     end
-#     st
-# end
-
-
-# # populate `Isol`
-# # p must not have any roots with even degree. (e.g. no (x-c)^(2k) exists as a factor for any c,k
-# # assumed square free (at least no roots of even multiplicity)
-# function isolate_roots(p::Vector{T}, m, M) where {T <: Real}
-
-# #    try
-#     st = ANewDsc(p, m, M)
-#     return st
-#     # catch err
-#     #     if  !(T <: BigFloat)
-#     #         try
-#     #             st = ANewDsc(convert(Poly{BigFloat}, p), m, M)
-#     #             return st
-#     #         catch err
-#     #             rethrow(err)
-#     #         end
-#     #     end
-#     # end
-        
-# end
-
-
-
-# # for interface
-# struct PolyType{T}
-#     p::Vector{T}
-# end
-# (p::PolyType)(x) = evalpoly(x, p.p)
-
-
+## --------------------------------------------------
 
 # """
 
