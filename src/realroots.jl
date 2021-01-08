@@ -1,50 +1,20 @@
-## Find real roots of a polynomial using a DesCartes Method
-##
-## From "Computing Real Roots of Real Polynomials ... and now For Real!" by Alexander Kobel, Fabrice Rouillier, Michael Rouillier
-## (https://arxiv.org/abs/1605.00410) 
+## Find real roots of a polynomial using a method from
+## "Computing Real Roots of Real Polynomials ... and now For Real!"
+## by Alexander Kobel, Fabrice Rouillier, Michael Rouillier
+## (https://arxiv.org/abs/1605.00410)
+## DOI:	10.1145/2930889.2930937
 ## 
 ## Earlier work of a Descartes-like method  [Vincent's theorem](http://en.wikipedia.org/wiki/Vincent's_theorem)
 ## are here "Efficient isolation of polynomial’s real roots" by
 ## Fabrice Rouillier; Paul Zimmermann
 ##
 ##
-## This still needs some engineering for performance
+## The implementation in Hecke.jl uses the full power of arblib and is
+## much better engineered than this.
+## This uses the ArbNumerics.jl package
 ##
-## The Taylor shift here is the most expensive operation
-## https://arxiv.org/pdf/1605.00410.pdf has a better strategy
-## of partial Taylor shifts, using just the nearby roots
-## 
 
 
-## our Intervals are of type ArbFloat{L} for possibly
-## different Ls. This ensures promotion to largest L
-_promote(x,y) = promote(x,y)
-_promote(x::Int, y::Int) = (ArbFloat{64}(x),ArbFloat{64}(y))
-_promote(x::Int, y::ArbFloat{L}) where {L} = (ArbFloat{L}(x),ArbFloat{L}(y))
-_promote(x::ArbFloat{L}, y::Int) where {L} = (ArbFloat{L}(x),ArbFloat{L}(y))
-
-function _promote(x::Float64, y::Float64)
-    (ArbFloat{64}(x),ArbFloat{64}(y))
-end
-function _promote(x::ArbFloat{L}, y::Float64) where {L}
-    (x, ArbFloat{L}(y))
-end
-
-function _promote(x::Float64, y::ArbFloat{L}) where {L}
-    return (ArbFloat{L}(x),y)
-end
-
-function _promote(x::ArbFloat{L}, y::ArbFloat{M}) where {L, M}
-    L > M && return (x, ArbFloat{L}(y))
-    return (ArbFloat{M}(x), y)
-end
-
-function _promote(x::ArbFloat, y::BigFloat)
-    (big(x), y)
-end
-
-"same as ArbNumerics.workingprecision"
-arbL(x::ArbFloat{L}) where {L} = L
 
 
 ## We consider intervals [a,b] with a,b of type ArbFloat{L}
@@ -77,41 +47,9 @@ State(p)  = State(Any[], Any[], Any[], ntuple(i -> p[i], length(p)))
 # **Much** faster to define poly operations over vectors than to
 # use `Polynomials.ImmutablePolynomial`.
 
-# poly is [p_0, p_1, ..., p_n] where there may be zeros in last terms
-
-# p + q
-function poly_add!(p::Vector{T}, q::Vector{S}) where {T, S}
-    n,m = length(p), length(q)
-    l = min(n, m)
-    for i in 1:l
-        p[i] += q[i]
-    end
-    for i in l:m
-        push!(p, q[i])
-    end
+function poly_deriv(p)
+    ntuple(i -> i*p[i+1], length(p)-1)
 end
-
-# p-q
-poly_sub!(p::Vector{T}, q::Vector{S}) where {T, S} = poly_add(p, -q)
-
-# may be more than one way
-function poly_mul!(p1::Vector{T}, p2::Vector{S}) where {T, S}
-    R = promote_type(T,S)
-
-    n = length(p1)
-    m = length(p2)
-    
-    a = zeros(R,m+n+1)
-
-    for i = 1:n
-        for j = 1:m
-            a[i+j+1] += p1[i] * p2[j]
-        end
-    end
-    p1[:] = a
-
-end
-
 
 function poly_deriv!(p::Vector{T}) where {T}
     for i = 1:length(p)-1
@@ -122,6 +60,10 @@ function poly_deriv!(p::Vector{T}) where {T}
 end
 
 
+## The Taylor shift here is the most expensive operation
+## https://arxiv.org/pdf/1605.00410.pdf has a better strategy
+## of partial Taylor shifts, using just the nearby roots
+## 
 
 " `p(x + λ)`: Translate polynomial left by λ "
 function poly_translate!(p::Vector{T}, lambda=1) where {T}
@@ -158,13 +100,8 @@ function poly_flip!(p)
 end
 
 
-
 # shift polynomial so (a,b) -> (0, oo)
 function poly_shift(p::Vector{T}, a, b) where {T}
-    #    p0 = Tλ(p, a)
-    #    p1 = Hλ(p0, b-a)
-    #    p2 = Tλ(R(p1),1)
-
     p1 = copy(p)
     poly_translate!(p1, a)
     poly_scale!(p1, b-a)
@@ -175,10 +112,10 @@ end
 
 ## Upper bound on size of real roots that is tighter than cauchy
 ## titan.princeton.edu/papers/claire/hertz-etal-99.ps
-function upperbound(p)
-    T = ArbFloat{64}
+function _upperbound(p)
+    T = ArbFloat{64}    
     p = p[findfirst(!iszero, p):end]
-    descartesbound(collect(T,p)) == 0 && return zero(T)
+    descartesbound(p) == 0 && return zero(T)
 
     p = p[findfirst(!iszero, p):end]
     
@@ -193,17 +130,18 @@ function upperbound(p)
 
     a,b,c = 1, -(1+a1), a1-B
     out = (-b + sqrt(b^2 - 4a*c))/2
-    T(out)
+
+    T = ArbFloat{64}
+    _promote(one(T), out)[2]
 end
 
-function lowerbound(p::Vector{T}) where {T <: Real}
+function _lowerbound(p::Vector{T}) where {T <: Real}
     q = p[findfirst(!iszero, p):end]
     
     poly_flip!(q)
-    ret = -upperbound(p)
+    ret = -_upperbound(q)
     ret
 end
-
 
 
 
@@ -329,10 +267,12 @@ function onetest(st, I::Interval{T₀}, R=T₀)  where {T₀}
     T = ArbFloat{2^(ceil(Int, log2(L)))}
 
     Ia, Ib = Interval(T(a), T(mstar)), Interval(T(mstar), T(b))
-    #zta, ztb = zerotest(st, Ia, T) && !isbracket(st, Ia), zerotest(st, Ib, T) && !isbracket(st, Ib)
     zta, ztb = zerotest(st, Ia, T), zerotest(st, Ib, T)
+    # XXX isbracket needed here
     zta && Ib.bnd[] == 1 && isbracket(p, Ib) && return (true, Ib)
     ztb && Ia.bnd[] == 1 && isbracket(p, Ia) && return (true, Ia)    
+#    zta && Ib.bnd[] == 1 && return (true, Ib)
+#    ztb && Ia.bnd[] == 1 && return (true, Ia)    
     
     return (false, Interval(a, b, I.N[], Ia.bnd[] + Ib.bnd[]))
 end
@@ -353,10 +293,6 @@ function boundarytest(st, node::Interval{T}) where {T}
     Iₗ, Iᵣ = Interval(mₗ⁺, b), Interval(a, mᵣ⁺)
     zₗ, zᵣ = zerotest(st, Iₗ), zerotest(st, Iᵣ)
 
-    ##
-    zₗ && isbracket(st, Iₗ) && @show :huh, Iₗ
-    zᵣ && isbracket(st, Iᵣ) && @show :huh, Iᵣ
-    
     zₗ && zᵣ && return (true, Interval(mₗ⁺, mᵣ⁺, N, 0))
     zₗ && return (true, Interval(a, mₗ⁺))
     zᵣ && return (true, Interval(mᵣ⁺, b))
@@ -370,7 +306,7 @@ function newtontest(st, node)
     a, b, m, w  = node.a, node.b, midpoint(node), width(node)
     N::Int = node.N[]
     bnd::Int = node.bnd[]
-    p, p′ = st.p, poly_deriv!(collect(st.p))
+    p, p′ = st.p, poly_deriv(st.p) 
     n = length(p) + 1
     ϵ = 1/(2^ceil(Int, 5 + log(n))) 
 
@@ -404,9 +340,9 @@ function newtontest(st, node)
                     bᵢⱼ = a + min(4N, (lᵢⱼ + 2)) * wI/(4N)
 
                     a⁺ᵢⱼ = (aᵢⱼ == a) ? aᵢⱼ : admissiblepoint(p, aᵢⱼ, ϵ * wI/(4N), n)
-                    (!zerotest(st, Interval(a, a⁺ᵢⱼ)) || isbracket(st, Interval(a, a⁺ᵢⱼ))) && continue
+                    (!zerotest(st, Interval(a, a⁺ᵢⱼ))) && continue
                     b⁺ᵢⱼ = (bᵢⱼ == a) ? bᵢⱼ : admissiblepoint(p, bᵢⱼ, ϵ * wI/(4N), n)
-                    (!zerotest(st, Interval(b⁺ᵢⱼ, b)) || isbracket(st, Interval(b⁺ᵢⱼ, b))) && continue                    
+                    (!zerotest(st, Interval(b⁺ᵢⱼ, b)) ) && continue                    
                     
                     return true, Interval(a⁺ᵢⱼ, b⁺ᵢⱼ, N*2, bnd)
 
@@ -437,7 +373,7 @@ function nextstep!(st::State, node)
 
     if zerotest(st, node)
         if isbracket(st, node)
-            @show :this_shouldnot_happen, node.bnd[]
+#            @show :this_shouldnot_happen, node.bnd[]
             push!(st.Unresolved, node)
         end
         return nothing
@@ -452,13 +388,13 @@ function nextstep!(st::State, node)
     for test in (newtontest,  boundarytest)
         val, I = test(st, node)
         if val
-            @show test
+#            @show test
             push!(st.Internal, I)
             return nothing
         end
     end
 
-    @show :linear
+#    @show :linear
     for I in linearstep(st, node)
         bnd = descartesbound(st, I)
         if bnd == -1
@@ -471,10 +407,9 @@ function nextstep!(st::State, node)
 end
 
 # assume p is square free
-function anewdsc(p; m=lowerbound(p), M=upperbound(p))
+function anewdsc(p; m=_lowerbound(p), M=_upperbound(p))
     st = State(p)
     I = Interval(m, M)
-    @show I
     push!(st.Internal, I)
     while !isempty(st.Internal)
         I = pop!(st.Internal)
@@ -483,18 +418,104 @@ function anewdsc(p; m=lowerbound(p), M=upperbound(p))
     st
     
 end
-        
+
+"""
+    real_roots_sqrfree(p; [m=], [M=])
+
+Call `anewdsc` to find isolating intervals, then find zeros using a bracketing method
+
+`p`: the polynomial coefficients, `[a₀, a₁, …, aₙ]`, of **square-free** polynomial.
+`m`, `M`: used to narrow search space 
+
+Examples:
+```
+julia> ps = [-1, 254, -16129, 0, 0, 0, 0, 1] # mignotte polynomial with two nearby roots
+
+julia> real_roots_sqfree(ps)
+3-element Array{ArbFloat,1}:
+ 6.93943740962
+ 0.00787401608913275440360872789878
+ 0.007874015406930341157555003028162
+
+julia> ps =[ # from https://discourse.julialang.org/t/root-isolation-of-real-rooted-integer-polynomials/51421
+                      942438915208811912419937422298363203125
+                   164182217245953398816894035758761902846875
+                  4584900574568933770264468813466870772155175
+                 48995332393110515074735075708247882042540865
+                266674183150777010544241114017741621823207005
+                852443280934837985352088128423887894438557515
+               1738546146302892245736990844587487000484756535
+               2381558158813900978436742173305983349418813145
+               2262003889258248241081177038309445610985409335
+               1516025051068561122302699855213604175083575145
+                720810987764796866354279087485114863858085005
+                241341213302325116160821160849326697595681275
+                 55563538585119205063994483187179167406616375
+                  8363912237256094118085070946083688310200625
+                   740493466743082745510080711751444519503125
+                    29215606371473169285018060091249259296875];
+
+julia> real_roots_sqfree(ps, m=-4, M=0)
+15-element Array{ArbFloat{64},1}:
+ -0.00701539819528
+ -0.0629983810833
+ -0.174209253846
+ -0.339102025104
+ -0.555265632219
+ -0.819305999802
+ -1.12667548938
+ -1.47143642655
+ -1.84593922753
+ -2.24038666835
+ -2.64224182084
+ -3.03541295495
+ -3.39910134596
+ -3.70611151706
+ -3.92061671115
+```
+
+The algorithm used is based on 
+
+Computing Real Roots of Real Polynomials ... and now For Real!
+by Alexander Kobel, Fabrice Rouillier, Michael Sagraloff
+arXiv:1605.00410; DOI:	10.1145/2930889.2930937
+
+!!! note
+    a square free polynomial can be found through `p/gcd(p, p')`, though in practice this
+    calculation is numerically unstable.
+
+!!! note
+    This is not nearly as fast as the function provided through `arblib` in `Hecke.jl`.
+
+"""
+function real_roots_sqfree(p; kwargs...)
+
+    st = anewdsc(p; kwargs...)
+
+    out = [find_zero(st, (I.a, I.b)) for I in st.Isol]
+    if !isempty(st.Unresolved)
+        println("Some intervals found were unresolved")
+        for I in st.Unresolved
+            println(I)
+        end
+    end
+
+    out
+end
+    
+
 ## --------------------------------------------------
 
 # """
 
 #      real_roots(p, [m], [M]; square_free=true)
 
-# Returns real roots of a polynomial presented via its coefficients `[p_0, p_1, ..., p_n]`. 
+# Returns real roots of a square-free polynomial presented via its coefficients
+# `[p_0, p_1, ..., p_n]`. 
 
 # * `p`: polynomial coefficients, `Vector{T<:Real}`
-# * `m`: lower bound on real roots. Defaults to `lowerbound(p)`
-# * `M`: upper bound on real roots. Defaults to `upperbound(p)`
+# * `m`: lower bound on real roots. Defaults to `_lowerbound(p)`
+# * `M`: upper bound on real roots. Defaults to `_upperbound(p)`
 # * `square_free`::Bool. If false, the polynomial `agcd(p, polyder(p))` is used. This polynomial---in theory--- would have the
 # same real roots as `p`, however in practice the approximate `gcd` can be off.
 
