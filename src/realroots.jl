@@ -38,10 +38,11 @@ struct State
     Internal                    # DesBound > 1
     Isol                        # DesBound == 1
     Unresolved
+    Zeros
     p
 end
 
-State(p)  = State(Any[], Any[], Any[], ntuple(i -> p[i], length(p)))
+State(p)  = State(Any[], Any[], Any[], Any[], ntuple(i -> p[i], length(p)))
 (st::State)(x) = evalpoly(x, st.p)
 
 # **Much** faster to define poly operations over vectors than to
@@ -375,6 +376,8 @@ function nextstep!(st::State, node)
         if isbracket(st, node)
 #            @show :this_shouldnot_happen, node.bnd[]
             push!(st.Unresolved, node)
+        else
+            push!(st.Zeros, node)
         end
         return nothing
     end
