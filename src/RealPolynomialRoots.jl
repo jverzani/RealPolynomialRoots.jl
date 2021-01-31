@@ -2,12 +2,12 @@ module RealPolynomialRoots
 
 using LinearAlgebra
 using Random
+using Polynomials
 
-import Roots
-import Roots: find_zero
+include("anewdsc.jl")
+include("real_roots.jl")
 
-include("realroots.jl")
 
-export ANewDsc, real_roots_sqfree
+export ANewDsc, real_roots
 
 end
