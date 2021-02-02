@@ -3,7 +3,7 @@
 [![Coverage](https://codecov.io/gh/jverzani/RealPolynomialRoots.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/jverzani/RealPolynomialRoots.jl)
 
 
-A package to find real roots of a square free polynomial.
+A package to find isolating intervals for the real roots of a square free polynomial.
 
 
 Example:
@@ -11,11 +11,12 @@ Example:
 ```
 julia> ps = [-1, 254, -16129, 0, 0, 0, 0, 1] # mignotte polynomial with two nearby roots
 
-julia> real_roots_sqfree(ps)
-3-element Array{ArbFloat,1}:
- 6.93943740962
- 0.00787401608913275440360872789878
- 0.007874015406930341157555003028162
+julia> ANewDsc(ps)
+There were 3 isolating intervals found:
+[3.0…, 9.5…]₅₃
+[0.00787401589014…, 0.00787401713433…]₅₃
+[0.00787401479283…, 0.00787401589014…]₅₃
+
 
 julia> ps =[ # from https://discourse.julialang.org/t/root-isolation-of-real-rooted-integer-polynomials/51421
                       942438915208811912419937422298363203125
@@ -35,23 +36,23 @@ julia> ps =[ # from https://discourse.julialang.org/t/root-isolation-of-real-roo
                    740493466743082745510080711751444519503125
                     29215606371473169285018060091249259296875];
 
-julia> real_roots_sqfree(ps, m=-4, M=0)
-15-element Array{ArbFloat{64},1}:
- -0.00701539819528
- -0.0629983810833
- -0.174209253846
- -0.339102025104
- -0.555265632219
- -0.819305999802
- -1.12667548938
- -1.47143642655
- -1.84593922753
- -2.24038666835
- -2.64224182084
- -3.03541295495
- -3.39910134596
- -3.70611151706
- -3.92061671115
+julia> ANewDsc(ps)
+There were 15 isolating intervals found:
+[-0.048706…, 0.0…]₁₇₃
+[-0.10388…, -0.048706…]₁₇₃
+[-0.1953…, -0.104…]₁₇₃
+[-0.3691…, -0.1953…]₁₇₃
+[-0.6953…, -0.3672…]₁₇₃
+[-1.0…, -0.6953…]₁₇₃
+[-1.344…, -1.0…]₁₇₃
+[-1.688…, -1.344…]₁₇₃
+[-2.062…, -1.688…]₁₇₃
+[-2.469…, -2.062…]₁₇₃
+[-2.844…, -2.469…]₁₇₃
+[-3.25…, -2.844…]₁₇₃
+[-3.594…, -3.25…]₁₇₃
+[-3.797…, -3.594…]₁₇₃
+[-4.0…, -3.797…]₁₇₃
 
 ```
 
@@ -62,6 +63,5 @@ by Alexander Kobel, Fabrice Rouillier, Michael Sagraloff
 arXiv:1605.00410; DOI:	10.1145/2930889.2930937
 
 
-Performance could be significantly improved. The `Hecke.jl` package has a much faster alternative.
+Performance could be **significantly** improved (polynomials of degree 10,000 or more are tractable with the algorithm, but this implementations only scales up to degree 100 or so). The `Hecke.jl` package has a much faster alternative.
 
-There are still bugs with higher order polynomials.
