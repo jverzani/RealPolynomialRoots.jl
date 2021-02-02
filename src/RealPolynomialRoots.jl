@@ -7,7 +7,8 @@ using Polynomials
 include("anewdsc.jl")
 include("real_roots.jl")
 
-
 export ANewDsc, real_roots
 
+include("fft.jl")
+export FFT
 end
