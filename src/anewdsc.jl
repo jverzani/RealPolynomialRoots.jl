@@ -1,6 +1,13 @@
 ## Find isolating intervals for real roots of a polynomial
 ## --------------------------------------------------
 
+## This implementation is too slow!
+## While polys of degree 1000 or more are tractable, this is
+## too slow to be usable for polynomials beyond degree 100 or so.
+## The underlying implmentation here (not the main algorithm) does
+## not scale as well as it should
+
+
 const DEF_PRECISION = 53 
 
 
@@ -26,12 +33,15 @@ end
 ## https://arxiv.org/pdf/1605.00410.pdf has a better strategy
 ## of partial Taylor shifts, using just the nearby roots
 ##
-## Some comments [here](https://math.stackexchange.com/questions/694565/polynomial-shift)
-## are interesting
-#
-# compute [p(a), p'(a), 1/2p''(a). 1/3! p'''(a)...]
-# as q(x) = p(x+a) = p(a) + p'(a)x + 1/2! p''(a)x^2 + 1/3! p'''(a) x^3 ....
-# this uses O(n^2) Horner scheme
+##
+## See Fast Approximate Polynomial Multipoint Evaluation and Applications (https://arxiv.org/pdf/1304.8069.pdf) for one possible speed up
+## see  The Fundamental Theorem of Algebra in Terms of Computational Complexity
+# https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.123.3313&rep=rep1&type=pdf
+## for another
+##
+## compute [p(a), p'(a), 1/2p''(a). 1/3! p'''(a)...]
+## as q(x) = p(x+a) = p(a) + p'(a)x + 1/2! p''(a)x^2 + 1/3! p'''(a) x^3 ....
+## this uses O(n^2) Horner scheme
 " `p(x + λ)`: Translate polynomial left by λ "
 function poly_translate!(p::Vector{T}, λ::T=one(T)) where {T}
     n = length(p)
@@ -109,6 +119,9 @@ function multipoint(m, ϵ, n′)
     (m + i * ϵ/n′ for i in -n′:n′)
 end
 
+# This uses 𝒐(n^2) algorithm. This can be reduced
+# The Alexander Kobel, Fabrice Rouillier, Michael Sagraloff paper suggests a randomization
+# Schonhage has a method to compute in 𝒐(n ln(n)) time
 function admissiblepoint(p, m, ϵ, n)
 
     T = BigFloat
@@ -195,6 +208,10 @@ end
 τ(p) = max(1, log(norm(p, Inf)))
 Mlog(x) = log(max(1, abs(x)))
 
+# In https://people.mpi-inf.mpg.de/~msagralo/RealRootComputation.pdf 0-test
+# the task of computing absolute L-bit approximations to p is not implemented
+# as suggested, rather, we just evalute `descartesbound` using L bits of precision
+# Similarly in onetest
 function zerotest(p, a, b)
 
     L′ = maximum(precision, (a,b))
@@ -309,7 +326,6 @@ end
 # retrun (nothing, I) -- no root in I
 # return (true, J) can reduce interval
 # return (false, I) can't trim, use linear
-boundarytest(st, I) = boundarytest(st.p, I.a, I.b, I.N[])
 function boundarytest(p, a, b, N)
 
 
@@ -515,28 +531,31 @@ julia> [find_zero(st, I, Roots.BisectionExact()) for I ∈ st]
 
 The default bracketing method for `BigFloat` can have issues with some problems, so we use `BisectionExact` above. Alternatively, `Roots.bisection(st, I...)` may be used.
 
-Comparing to some alternatives, we have:
+Comparing to some alternatives, we have, the functionality from
+Hecke.jl (`Hecke._roots`) is much better. However, compared to others this
+could be seen as useful:
 
 ```
 julia> x = variable(Polynomial);
 
 julia> p = -1 + 254*x - 16129*x^2 + x^15;
 
-julia> real_roots(p)
+julia> @time real_roots(p) # ANewDsc(coeffs(p))
+  0.091078 seconds (2.41 M allocations: 106.406 MiB, 27.02% gc time)
 There were 3 isolating intervals found:
-[1.59…, 2.56…]₅₃
-[0.0078740157480314952676…, 0.0078740157480314991148…]₁₀₆
-[0.00787401574803149398479…, 0.0078740157480314952672…]₁₀₆
+[0.781…, 3.12…]₅₃
+[0.00787401574803149570638…, 0.00787401574803149913348…]₂₁₂
+[0.0078740157480314918219…, 0.0078740157480314957064…]₂₁₂
 
-julia> filter(isreal, roots(p))
+julia> filter(isreal, roots(p)) # much faster, but misses two roots with imaginary part ~ 1e-10
 1-element Array{Complex{Float64},1}:
  2.1057742291764914 + 0.0im
 
-julia> filter(isreal, AMRVW.roots(Float64.(coeffs(p)))) # using AMRVW
+julia> filter(isreal, AMRVW.roots(Float64.(coeffs(p)))) # using AMRVW. Similarly misses two roots
 1-element Array{Complex{Float64},1}:
  2.1057742291764407 + 0.0im
 
-julia> filter(isreal, PolynomialRoots.roots(coeffs(p))) # using PolynomialRoots
+julia> filter(isreal, PolynomialRoots.roots(coeffs(p))) # using PolynomialRoots. Misses 2.105?
 2-element Array{Complex{Float64},1}:
    0.0078740158234482 + 0.0im
  0.007874015672614794 + 0.0im
@@ -554,9 +573,10 @@ julia> IntervalRootFinding.roots(f, IntervalArithmetic.Interval(0.0, 5.0)) # usi
 
 julia> @vars x # using SymPy
 
-julia> rts = sympy.real_roots(p(x)); # correctly identifies 3
+julia> @time  rts = sympy.real_roots(p(x)); # correctly identifies 3. 
+  0.003896 seconds (518 allocations: 13.359 KiB)
 
-julia> sympy.N(rts[2]) # takes a long time
+julia> sympy.N(rts[2]) # takes a long time! (162s)
 0.00787401574803150
 ```
 
