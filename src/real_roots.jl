@@ -54,12 +54,28 @@ julia> filter(isreal, roots(p)) ## misses two with imaginary part ≈ 1e-10
     The roots can be found from the intervals. See [`ANewDsc`](@ref) for an illustration
     using the `Roots` package to do so.
 """
-function real_roots(p::Polynomials.StandardBasisPolynomial; square_free=true, kwargs...)
+function real_roots(p::Polynomial; square_free=true, kwargs...)
     if square_free
-        return ANewDsc(coeffs(p); kwargs...)
+        st = ANewDsc(p; kwargs...)
     else
         u,v,w,_,_ = ngcd(p, derivative(p))
-        return ANewDsc(coeffs(v); kwargs...)
+        st = ANewDsc(v; kwargs...)
     end
+
+    if !isempty(st.Unresolved)
+        @warn "there are unresolved intervals"
+    end
+
+    map(st) do I
+        prec = precision(I.a)
+        if prec == 53
+            find_zero(st, Float64.(I))
+        else
+            setprecision(prec) do
+                find_zero(st, I, Roots.BisectionExact())
+            end
+        end
+    end
+    
 end
 

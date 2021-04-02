@@ -1,54 +1,12 @@
-using Polynomials
-using LinearAlgebra
+## Find isolating intervals for real roots of a polynomial
+## --------------------------------------------------
 
-# Some in place operations used in mobius_transform!
+## This implementation is too slow!
+## While polys of degree 1000 or more are tractable, this is
+## too slow to be usable for polynomials beyond degree 100 or so.
+## The underlying implmentation here (not the main algorithm) does
+## not scale as well as it should
 
-# p -> p(-x)
-function Base.reverse!(p::Polynomial)
-    reverse!(p.coeffs)
-    p
-end
-
-# p -> p(λx)
-function scale!(p::Polynomial{T,X}, λ::S) where {T, X, S <: Number}
-    a = λ
-    for i in 2:length(p.coeffs)
-        @inbounds p.coeffs[i] *= a
-        a *= λ
-    end
-    nothing
-end
-
-# p -> p(x + λ)
-## compute [p(a), p'(a), 1/2p''(a). 1/3! p'''(a)...]
-## as q(x) = p(x+a) = p(a) + p'(a)x + 1/2! p''(a)x^2 + 1/3! p'''(a) x^3 ....
-## this uses O(n^2) Horner scheme
-function taylor_shift!(p::Polynomial{T,X}, λ::T=one(T)) where {T,X}
-    n = length(p.coeffs)
-    dps = zeros(T, n)
-    for i in n:-1:1
-        for j in n:-1:2
-            @inbounds dps[j] = muladd(dps[j], λ, dps[j-1])
-        end
-        @inbounds dps[1] = muladd(dps[1], λ, p.coeffs[i])
-    end
-
-    copy!(p.coeffs, dps)
-
-    nothing
-
-end
-
-# p -> p((ax + b)/(x+b))
-function mobius_transform!(p::Polynomial{T}, a, b) where {T}
-    taylor_shift!(p, a)
-    scale!(p, (b-a))
-    reverse!(p)
-    taylor_shift!(p, one(T))
-    nothing
-end
-
-## -----
 
 const DEF_PRECISION = 53 
 
@@ -57,22 +15,95 @@ const DEF_PRECISION = 53
 precision(x::Float64) = DEF_PRECISION
 precision(x::BigFloat) = Base.MPFR.precision(x)
 
+function poly_deriv(p)
+    ntuple(i -> i*p[i+1], length(p)-1)
+end
+
+function poly_deriv!(p::Vector{T}) where {T}
+    for i = 1:length(p)-1
+        p[i] = i * p[i+1]
+    end
+    p[end] = zero(T)
+    p
+end
+
+
+## The Taylor shift here is the most expensive operationm 𝑶(n²)
+##
+## https://arxiv.org/pdf/1605.00410.pdf has a better strategy
+## of partial Taylor shifts, using just the nearby roots
+##
+##
+## See Fast Approximate Polynomial Multipoint Evaluation and Applications (https://arxiv.org/pdf/1304.8069.pdf) for one possible speed up
+## see  The Fundamental Theorem of Algebra in Terms of Computational Complexity
+# https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.123.3313&rep=rep1&type=pdf
+## for another
+##
+## compute [p(a), p'(a), 1/2p''(a). 1/3! p'''(a)...]
+## as q(x) = p(x+a) = p(a) + p'(a)x + 1/2! p''(a)x^2 + 1/3! p'''(a) x^3 ....
+## this uses O(n^2) Horner scheme
+" `p(x + λ)`: Translate polynomial left by λ "
+function poly_translate!(p::Vector{T}, λ::T=one(T)) where {T}
+    n = length(p)
+    dps = zeros(T, n)
+    for i in n:-1:1
+        for j in n:-1:2
+            @inbounds dps[j] = muladd(dps[j], λ, dps[j-1])
+        end
+        @inbounds dps[1] = muladd(dps[1], λ, p[i])
+    end
+
+    copy!(p, dps)
+
+    nothing
+
+end
+
+"Finds  `x^n p(1/x)` which is a reversal of coefficients "
+function poly_reverse!(p)
+    reverse!(p)
+end
+
+"scale x axis by λ"
+function poly_scale!(p, λ)
+    a = λ
+    for i in 2:length(p)
+        @inbounds p[i] *= a
+        a *= λ
+    end
+end
+
+"q = p(-x)"
+function poly_flip!(p)
+    for i in 2:2:length(p)
+        @inbounds p[i] = -p[i]
+    end
+end
+
+# shift polynomial so (a,b) -> (0, oo)
+poly_shift(p, a, b) = poly_shift!(copy(p), a, b)
+function poly_shift!(p::Vector{T}, a, b) where {T}
+    poly_translate!(p, a)
+    poly_scale!(p, b-a)
+    poly_reverse!(p)
+    poly_translate!(p, one(T))
+    p
+end
 
 function descartesbound(p, a, b, L =  maximum(precision, (a,b)))
     T = BigFloat
     setprecision(L) do
-        q = Polynomial{T, :x}(Val(false), collect(T, p.coeffs))
-        mobius_transform!(q, T(a), T(b))
+        q = poly_shift(collect(T, p), T(a), T(b))
         descartescount(q, 1/T(2)^L)
     end
 end
 descartesbound(p) = descartescount(p, 0.0)
 
 # Descartes bound on real roots based on the sign changes 
-function descartescount(q::Polynomial{T}, tol) where {T}
+function descartescount(q, tol)
     cnt = -1
-    s = zero(T)
-    for qᵢ in q.coeffs
+    s = zero(eltype(q))
+    for qᵢ in q
         abs(qᵢ) < tol && return -1
         sᵢ = sign(qᵢ)
         if sᵢ != s
@@ -104,7 +135,7 @@ function admissiblepoint(p, m, ϵ, n)
             tol = eps(BigFloat)
             mx, vx = zero(T), zero(T)
             for mᵢ in multipoint(T(m), T(ϵ), n)
-                vᵢ = abs(p(mᵢ))
+                vᵢ = abs(evalpoly(mᵢ, p))
                 if vᵢ > vx
                     vx, mx = vᵢ, mᵢ
                 end
@@ -139,9 +170,13 @@ end
 ## An interval can be iterated over to return the end points
 Base.length(I::Interval) = 2
 function Base.iterate(I::Interval, state=nothing)
-    isnothing(state) && return (I.a, 1)
-    isone(state) && return (I.b, 2)
-    return nothing
+    if state==nothing
+        return (I.a, 1)
+    elseif state == 1
+        return (I.b, 2)
+    else
+        return nothing
+    end
 end        
 
 function Base.show(io::IO, I::Interval)
@@ -163,8 +198,6 @@ function Base.show(io::IO, I::Interval)
     end
 end
 
-## ---
-
 function tₐ(pa)
     apa = abs(pa)
     L = precision(pa)
@@ -183,11 +216,11 @@ function zerotest(p, a, b)
 
     L′ = maximum(precision, (a,b))
     pa, pb = setprecision(L′) do
-        p(a), p(b)
+        evalpoly(a, p), evalpoly(b, p)
     end
     ta, tb = tₐ(a), tₐ(b)
 
-    n = degree(p)
+    n = length(p) + 1
     n′ = sum(divrem(n,2))
 
     L′′ = max(24, L′, max(1, -min(ta-1, tb-1) + 2(n+1) + 1)) 
@@ -207,7 +240,7 @@ function onetest(p, a, b)
     L′ = maximum(precision, (a,b))
     ta, tb = tₐ(a), tₐ(b)
 
-    n = degree(p)
+    n = length(p) - 1
     n′ = sum(divrem(n,2))
 
     ϵ = (b-a) / (4n)
@@ -229,8 +262,9 @@ function onetest(p, a, b)
 
 end
 
-function newtontest(p, p′, a, b, N)
+function newtontest(p, a, b, N)
 
+    p, p′ = p, poly_deriv(p) 
     n = length(p) - 1
     n′ = sum(divrem(n, 2))
     ϵ = 1/(2^ceil(Int, 5 + log(n))) 
@@ -244,7 +278,7 @@ function newtontest(p, p′, a, b, N)
                 val, J = setprecision(L′) do
                     m, w = a + (b-a)/2, b-a
                     ξᵢ, ξⱼ = admissiblepoint(p, a + i*w/4, ϵ * w, n′), admissiblepoint(p, a + j*w/4, ϵ * w, n′)
-                    vᵢ, vⱼ = p(ξᵢ)/p′(ξᵢ), p(ξⱼ)/p′(ξⱼ)
+                    vᵢ, vⱼ = evalpoly(ξᵢ,p)/evalpoly(ξᵢ,p′), evalpoly(ξⱼ,p)/evalpoly(ξⱼ,p′)
                     
                     
                     if (abs(vᵢ) > w && abs(vⱼ) > w) ||
@@ -295,7 +329,7 @@ end
 function boundarytest(p, a, b, N)
 
 
-    n = degree(p)
+    n = length(p) - 1
     n′ = sum(divrem(n,2))
     ϵ = 1/2.0^(2 + ceil(Int, log(n)))
 
@@ -327,16 +361,15 @@ function upperbound(p)
     T = BigFloat
     #setprecision(DEF_PRECISION) do
 
-    n = degree(p)
-    
+    n = length(p) - 1
     L = 53 + n + ceil(Int, τ(p))
     setprecision(L) do
-        #pp = p.coeffs[findfirst(!iszero, p.coeffs):end]
+        p = p[findfirst(!iszero, p):end]
         descartesbound(p) == 0 && return zero(T)
         
-        #p = p[findfirst(!iszero, p):end]
+        p = p[findfirst(!iszero, p):end]
         
-        q, d = p/p[end], n
+        q, d = p/p[end], length(p)-1
         
         d == 0 && error("degree 0 is a constant")
         d == 1 && abs(q[1])
@@ -353,11 +386,11 @@ function upperbound(p)
 end
 
 function lowerbound(p)
-    q,d = copy(p), degree(p)
-    reverse!(q)
-    chop!(q)
+    q = p[findfirst(!iszero, p):end]
+    poly_flip!(q)
 
-    L = 53 + d + ceil(Int, τ(p))
+    n = length(p) - 1
+    L = 53 + n + ceil(Int, τ(p))
     setprecision(L) do
         -upperbound(q)
     end
@@ -588,9 +621,8 @@ function ANewDsc(p; m=lowerbound(p), M=upperbound(p), max_depth=96)
 
     DEBUG = false
     
-    n = degree(p)
+    n = length(p) - 1
     n′ = sum(divrem(n,2))
-    p′ = derivative(p)
 
     L = maximum(precision∘float, (m, M))
     m′, M′ = setprecision(L) do
@@ -630,7 +662,7 @@ function ANewDsc(p; m=lowerbound(p), M=upperbound(p), max_depth=96)
         L = maximum(precision, (a, b))        
         
         pa, pb = setprecision(L) do
-            p(a), p(b)
+            evalpoly(a, p), evalpoly(b, p)
         end
 
         if iszero(pa) || iszero(pb)
@@ -642,7 +674,7 @@ function ANewDsc(p; m=lowerbound(p), M=upperbound(p), max_depth=96)
         # shrink or divide
         N, depth′ = I.N[], I.Depth[] + 1
 
-        val, J = newtontest(p, p′, a, b, N)
+        val, J = newtontest(p, a, b, N)
         if val
             λ = Float64((I.b-I.a)/(J.b - J.a))
             DEBUG && @show :newton, λ
