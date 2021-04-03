@@ -892,3 +892,9 @@ function ANewDsc(p; m=-upperbound(p), M=upperbound(p), max_depth=96)
     
 
 end
+
+
+## ps = [3628800, -10628640, 12753576, -8409500, 3416930, -902055, 157773, -18150, 1320, -55, 1]
+## p = IP(ps)
+## @btime ANewDesc(p)
+## 84.536 ms (900254 allocations: 59.95 MiB)
