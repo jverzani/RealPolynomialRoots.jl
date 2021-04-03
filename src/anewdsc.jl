@@ -64,7 +64,7 @@ end
 
 
 """
-    ΠₙPolynomial{T,X}(coeffs::Vector{T})
+    IP{T,X}(coeffs::Vector{T})
 
 Construct a polynomial in `Πₙ`, the collection of polynomials of degree `n` or less using a vector of length `N+1`.
 
@@ -78,6 +78,14 @@ struct IP{T,X,N} <: Polynomials.StandardBasisPolynomial{T, X}
     function IP{T,X,N}(coeffs::NTuple{N,T}) where {T,X,N}
         new{T,X,N}(coeffs)
     end
+    function IP{T,X,N}(coeffs::Vector) where {T,X,N}
+        new{T,X,N}(ntuple(i->coeffs[i],Val(N)))
+    end
+    function IP{T,X}(coeffs::Vector) where {T,X}
+        N = length(coeffs)
+        new{T,X,N}(ntuple(i->coeffs[i],N))
+    end
+
     function IP{T, X}(coeffs::NTuple{N,T}) where {T, X,N}
         new{T,X,N}(coeffs) # NO CHECK on trailing zeros
     end
@@ -92,6 +100,11 @@ export IP
 Polynomials.@register IP
 @register_mutable_arithmetic IP
 
+function Polynomials.chop(p::IP{T,X}) where {T,X}
+    n = findlast(!iszero, p.coeffs)
+    n == nothing && return IP{T,X}(zero(T))
+    IP{T,X}(p.coeffs[1:n])
+end
 # change broadcast semantics
 Base.broadcastable(p::IP) = p.coeffs;
 Base.ndims(::Type{<:IP}) = 1
@@ -130,8 +143,8 @@ end
 
 
 # p -> p(-x)
-function Base.reverse!(p::Polynomials.StandardBasisPolynomial)
-    reverse!(p.coeffs) # won't work with immutable
+function Base.reverse!(p::Polynomial)
+    reverse!(p.coeffs)
     p
 end
 
@@ -155,7 +168,17 @@ end
 #     nothing
 # end
 
-        
+
+
+# p -> p(λx)
+function scale!(p::Polynomial{T,X}, λ::S) where {T, X, S <: Number}
+    a = λ
+    for i in 2:length(p.coeffs)
+        @inbounds p.coeffs[i] *= a
+        a *= λ
+    end
+    nothing
+end
 
 # p -> p(λx)
 function scale!(p::IP, λ)
@@ -169,61 +192,64 @@ end
 export scale!
 
 
+export taylor_shift, taylor_shift!
+function taylor_shift!(p::Polynomial{T,X}, λ=one(T)) where {T,X}
+    n = length(p.coeffs)
+    dps = zeros(T, n)
+    for i in n:-1:1
+        for j in n:-1:2
+            @inbounds dps[j] = muladd(dps[j], λ, dps[j-1])
+        end
+        @inbounds dps[1] = muladd(dps[1], λ, p.coeffs[i])
+    end
+
+    copy!(p.coeffs, dps)
+
+    nothing
+
+end
+
+
+function taylor_shift!(p::IP{T,X,N}, λ=1) where {T,X,N}
+    ps = p.coeffs
+    dps = deepcopy(ps)
+    MA.zero!.(ps)
+    for i in N:-1:1
+        for j in N:-1:2
+            muladd!(ps[j], λ, ps[j-1])
+        end
+        muladd!(ps[1], λ, dps[i])
+    end
+    nothing
+end
+
 # a <- a*b+c
 function muladd!(a,b,c)
     MA.mul!(a,b)
     MA.add_to!(a,a,c)
 end
 
-export shift!
-function shift!(p::IP{T,X,N}, λ=1) where {T,X,N}
-    dps = deepcopy(p)
-    MA.zero!.(p)
-    for i in N:-1:1
-        for j in N:-1:2
-            muladd!(p[j], λ, p[j-1])
-        end
-        muladd!(p[1], λ, dps[i])
-    end
-    nothing
-end
 
-# p -> p(x + λ)
-## compute [p(a), p'(a), 1/2p''(a). 1/3! p'''(a)...]
-## as q(x) = p(x+a) = p(a) + p'(a)x + 1/2! p''(a)x^2 + 1/3! p'''(a) x^3 ....
-## this uses O(n^2) Horner scheme
-function taylor_shift!(p, λ=1)
-    ps = p.coeffs
-    n = length(ps)
-    dps = deepcopy(ps)
-    MA.zero!.(ps)
-    for i in n:-1:1
-        for j in n:-1:2
-            muladd!(ps[j], λ, ps[j-1])
-        end
-         muladd!(ps[1], λ, dps[i])
-    end
-    return p
-    nothing
-end
 
-#p -> p((ax + b)/(x+b))
-function mobius_transform!(p::P, a, b) where {T,P<:Polynomials.StandardBasisPolynomial{T}}
-   taylor_shift!(p, a)
-   scale!(p, (b-a))
-   reverse!(p)
-   taylor_shift!(p, one(T))
+# p -> p((ax + b)/(x+b))
+function mobius_transform!(p::Polynomial{T}, a, b) where {T}
+    taylor_shift!(p, a)
+    scale!(p, (b-a))
+    reverse!(p)
+    taylor_shift!(p, one(T))
     nothing
-end
+end      
+
+
 
 function mobius_transform(p::IP{T}, a, b) where {T}
-    shift!(p, a)
+    taylor_shift!(p, a)
     scale!(p, b-a)
     q = reverse(p)
-    shift!(q, one(T))
+    taylor_shift!(q, one(T))
     q
 end
-export mobius_transform
+export mobius_transform,mobius_transform!
 
 
 ## -----
@@ -235,7 +261,14 @@ const DEF_PRECISION = 53
 precision(x::Float64) = DEF_PRECISION
 precision(x::BigFloat) = Base.MPFR.precision(x)
 
-
+function descartesbound(p::IP{T}, a, b, L =  maximum(precision, (a,b))) where {T}
+    setprecision(L) do
+        q = deepcopy(p)
+        q′ = mobius_transform(q, T(a), T(b))
+        descartescount(q′, 1/T(2)^L)
+    end
+end
+export descartesbound
 function descartesbound(p, a, b, L =  maximum(precision, (a,b)))
     T = BigFloat
     setprecision(L) do
@@ -358,7 +391,7 @@ Mlog(x) = log(max(1, abs(x)))
 # as suggested, rather, we just evalute `descartesbound` using L bits of precision
 # Similarly in onetest
 function zerotest(p, a, b)
-
+    
     L′ = maximum(precision, (a,b))
     pa, pb = setprecision(L′) do
         p(a), p(b)
@@ -378,7 +411,7 @@ function zerotest(p, a, b)
     return false
     
 end
-
+export zerotest, onetest
 
 function onetest(p, a, b)
 
@@ -487,7 +520,7 @@ function boundarytest(p, a, b, N)
         mₗ, mᵣ = a + w/(2N), b - w/(2N)
         mₗ⁺, mᵣ⁺ = admissiblepoint(p, mₗ, ϵ*w/N, n′), admissiblepoint(p, mᵣ, ϵ*w/N, n′)
         a < mₗ⁺ <= mᵣ⁺ < b || return (false, I)
-
+        
         zₗ, zᵣ = zerotest(p, mₗ⁺, b), zerotest(p, a, mᵣ⁺)
         
         zₗ && zᵣ && return (nothing, I) # no root
@@ -531,9 +564,11 @@ function upperbound(p)
 end
 
 function lowerbound(p)
-    q,d = copy(p), degree(p)
-    poly_invert!(q) #reverse!(q)
-    chop!(q)
+#    q,d = copy(p), degree(p)
+    #    poly_invert!(q) #reverse!(q)
+    q = chop(reverse(p))
+    d = degree(q)
+    d <= 0 && error("constant")
 
     L = 53 + d + ceil(Int, τ(p))
     setprecision(L) do
@@ -762,7 +797,8 @@ improvements (not implemented here).
 
 
 """
-function ANewDsc(p; m=lowerbound(p), M=upperbound(p), max_depth=96)
+function ANewDsc(p; m=-upperbound(p), M=upperbound(p), max_depth=96)
+#function ANewDsc(p; m=lowerbound(p), M=upperbound(p), max_depth=96)
 
     DEBUG = false
     
