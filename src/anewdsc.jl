@@ -566,7 +566,8 @@ end
 function lowerbound(p)
 #    q,d = copy(p), degree(p)
     #    poly_invert!(q) #reverse!(q)
-    q = chop(reverse(p))
+    q = deepcopy(p)
+    scale!(q, -1)
     d = degree(q)
     d <= 0 && error("constant")
 
@@ -797,8 +798,7 @@ improvements (not implemented here).
 
 
 """
-function ANewDsc(p; m=-upperbound(p), M=upperbound(p), max_depth=96)
-#function ANewDsc(p; m=lowerbound(p), M=upperbound(p), max_depth=96)
+function ANewDsc(p; m=lowerbound(p), M=upperbound(p), max_depth=96)
 
     DEBUG = false
     
