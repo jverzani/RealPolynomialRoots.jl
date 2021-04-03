@@ -1,17 +1,189 @@
-# Some in place operations used in mobius_transform!
+# Refactored from https://github.com/JuliaMath/Polynomials.jl/pull/331
+using MutableArithmetics
+const MA = MutableArithmetics
+
+
+function _resize_zeros!(v::Vector, new_len)
+    old_len = length(v)
+    if old_len < new_len
+        resize!(v, new_len)
+        for i in (old_len + 1):new_len
+            v[i] = zero(eltype(v))
+        end
+    end
+end
+
+function add_conv end
+
+
+function MA.buffer_for(::typeof(add_conv), ::Type{Vector{T}}, ::Type{Vector{T}}, ::Type{Vector{T}}) where {T}
+    return MA.buffer_for(MA.add_mul, T, T, T)
+end
+function MA.mutable_buffered_operate!(buffer, ::typeof(add_conv), out::Vector{T}, E::Vector{T}, k::Vector{T}) where {T}
+    for x in eachindex(E)
+        for i in eachindex(k)
+            j = x + i - 1
+            out[j] = MA.buffered_operate!(buffer, MA.add_mul, out[j], E[x], k[i])
+        end
+    end
+    return out
+end
+
+"""
+    @register_mutable_arithmetic
+Register polynomial type (with vector based backend) to work with MutableArithmetics
+"""
+macro register_mutable_arithmetic(name)
+    poly = esc(name)
+    quote
+        MA.mutability(::Type{<:$poly}) = MA.IsMutable()
+
+        function MA.promote_operation(::Union{typeof(+), typeof(*)},
+                                      ::Type{$poly{S,X}}, ::Type{$poly{T,X}}) where {S,T,X}
+            R = promote_type(S,T)
+            return $poly{R,X}
+        end
+
+        function MA.buffer_for(::typeof(MA.add_mul),
+                               ::Type{<:$poly{T,X}},
+                               ::Type{<:$poly{T,X}}, ::Type{<:$poly{T,X}}) where {T,X}
+            V = Vector{T}
+            return MA.buffer_for(add_conv, V, V, V)
+        end
+
+        function MA.mutable_buffered_operate!(buffer, ::typeof(MA.add_mul),
+                                              p::$poly, q::$poly, r::$poly)
+            ps, qs, rs = coeffs(p), coeffs(q), coeffs(r)
+            _resize_zeros!(ps, length(qs) + length(rs) - 1)
+            MA.mutable_buffered_operate!(buffer, add_conv, ps, qs, rs)
+            return p
+        end
+    end
+end
+
+
+
+"""
+    ΠₙPolynomial{T,X}(coeffs::Vector{T})
+
+Construct a polynomial in `Πₙ`, the collection of polynomials of degree `n` or less using a vector of length `N+1`.
+
+* Unlike other polynomial types, this type allows trailing zeros in the coefficient vector
+* Unlike other polynomial types, this does not copy the coefficients on construction
+* Unlike other polynomial types, this type broadcasts like a vector for in-place vector operations (scalare multiplication, polynomial addition/subtraction of the same size)
+
+"""
+struct IP{T,X,N} <: Polynomials.StandardBasisPolynomial{T, X}
+    coeffs::NTuple{N,T}
+    function IP{T,X,N}(coeffs::NTuple{N,T}) where {T,X,N}
+        new{T,X,N}(coeffs)
+    end
+    function IP{T, X}(coeffs::NTuple{N,T}) where {T, X,N}
+        new{T,X,N}(coeffs) # NO CHECK on trailing zeros
+    end
+end
+function IP(coeffs::NTuple{N,T}) where {N,T}
+    IP{T,:x,N}(coeffs)
+end
+
+export IP
+
+
+Polynomials.@register IP
+@register_mutable_arithmetic IP
+
+# change broadcast semantics
+Base.broadcastable(p::IP) = p.coeffs;
+Base.ndims(::Type{<:IP}) = 1
+Base.copyto!(p::IP, x) = copyto!(p.coeffs, x);
+
+function Polynomials.degree(p::IP)
+    i = findlast(!iszero, p.coeffs)
+    i == nothing && return -1
+    i - 1
+end
+
+# pre-allocated multiplication
+function LinearAlgebra.mul!(pq, p::IP{T,X}, q) where {T,X}
+    m,n = length(p)-1, length(q)-1
+    pq.coeffs .= zero(T)
+    for i ∈ 0:m
+        for j ∈ 0:n
+            k = i + j
+            pq.coeffs[1+k] += p.coeffs[1+i] * q.coeffs[1+j]
+        end
+    end
+    nothing
+end
+
+
+## --------
+## What do I want?
+## fast transform
+## fast evaluations -- use NTuple{N,BigFloat}
+## fast transformations
+
+# # Some in place operations used in mobius_transform!
+
+## set up mobius for ImmutablePolynomial
+
+
 
 # p -> p(-x)
-function Base.reverse!(p::Polynomial)
-    reverse!(p.coeffs)
+function Base.reverse!(p::Polynomials.StandardBasisPolynomial)
+    reverse!(p.coeffs) # won't work with immutable
     p
 end
 
+function Base.reverse(p::IP)
+    IP(reverse(p.coeffs))
+end
+
+# function _reverse!(p)
+#     n = length(p)
+#     c = zero(eltype(p))
+#     for i ∈ 1:(n÷2)
+#         j = n + 1 - i
+#         @inbounds pᵢ,pⱼ = p[i], p[j]
+#         MA.zero!(c)
+#         MA.add!(c,pᵢ)
+#         MA.zero!(pᵢ)
+#         MA.add!(pᵢ,pⱼ)
+#         MA.zero!(pⱼ)
+#         MA.add!(pⱼ,c)
+#     end
+#     nothing
+# end
+
+        
+
 # p -> p(λx)
-function scale!(p::Polynomial{T,X}, λ::S) where {T, X, S <: Number}
+function scale!(p::IP, λ)
     a = λ
     for i in 2:length(p.coeffs)
-        @inbounds p.coeffs[i] *= a
+        MA.mul!(p.coeffs[i], a)
         a *= λ
+    end
+    nothing
+end
+export scale!
+
+
+# a <- a*b+c
+function muladd!(a,b,c)
+    MA.mul!(a,b)
+    MA.add_to!(a,a,c)
+end
+
+export shift!
+function shift!(p::IP{T,X,N}, λ=1) where {T,X,N}
+    dps = deepcopy(p)
+    MA.zero!.(p)
+    for i in N:-1:1
+        for j in N:-1:2
+            muladd!(p[j], λ, p[j-1])
+        end
+        muladd!(p[1], λ, dps[i])
     end
     nothing
 end
@@ -20,30 +192,39 @@ end
 ## compute [p(a), p'(a), 1/2p''(a). 1/3! p'''(a)...]
 ## as q(x) = p(x+a) = p(a) + p'(a)x + 1/2! p''(a)x^2 + 1/3! p'''(a) x^3 ....
 ## this uses O(n^2) Horner scheme
-function taylor_shift!(p::Polynomial{T,X}, λ::T=one(T)) where {T,X}
-    n = length(p.coeffs)
-    dps = zeros(T, n)
+function taylor_shift!(p, λ=1)
+    ps = p.coeffs
+    n = length(ps)
+    dps = deepcopy(ps)
+    MA.zero!.(ps)
     for i in n:-1:1
         for j in n:-1:2
-            @inbounds dps[j] = muladd(dps[j], λ, dps[j-1])
+            muladd!(ps[j], λ, ps[j-1])
         end
-        @inbounds dps[1] = muladd(dps[1], λ, p.coeffs[i])
+         muladd!(ps[1], λ, dps[i])
     end
-
-    copy!(p.coeffs, dps)
-
-    nothing
-
-end
-
-# p -> p((ax + b)/(x+b))
-function mobius_transform!(p::Polynomial{T}, a, b) where {T}
-    taylor_shift!(p, a)
-    scale!(p, (b-a))
-    reverse!(p)
-    taylor_shift!(p, one(T))
+    return p
     nothing
 end
+
+#p -> p((ax + b)/(x+b))
+function mobius_transform!(p::P, a, b) where {T,P<:Polynomials.StandardBasisPolynomial{T}}
+   taylor_shift!(p, a)
+   scale!(p, (b-a))
+   reverse!(p)
+   taylor_shift!(p, one(T))
+    nothing
+end
+
+function mobius_transform(p::IP{T}, a, b) where {T}
+    shift!(p, a)
+    scale!(p, b-a)
+    q = reverse(p)
+    shift!(q, one(T))
+    q
+end
+export mobius_transform
+
 
 ## -----
 
@@ -66,7 +247,7 @@ end
 descartesbound(p) = descartescount(p, 0.0)
 
 # Descartes bound on real roots based on the sign changes 
-function descartescount(q::Polynomial{T}, tol) where {T}
+function descartescount(q::P, tol) where {T, P<:Polynomials.StandardBasisPolynomial{T}}
     cnt = -1
     s = zero(T)
     for qᵢ in q.coeffs
@@ -351,7 +532,7 @@ end
 
 function lowerbound(p)
     q,d = copy(p), degree(p)
-    reverse!(q)
+    poly_invert!(q) #reverse!(q)
     chop!(q)
 
     L = 53 + d + ceil(Int, τ(p))
