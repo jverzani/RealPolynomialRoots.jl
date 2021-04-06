@@ -11,9 +11,9 @@ MutableArithmetics = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
 Roots = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
 
 [compat]
-julia = "1"
-Polynomials = "2"
-Roots = "1"
+julia = "1.4"
+Polynomials = "1,2"
+Roots = "1.0.8"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

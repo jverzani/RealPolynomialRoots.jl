@@ -1,3 +1,6 @@
+## ----
+Container{T} = Union{AbstractVector{T}, NTuple{N,T}} where {N}
+
 ## ---- Interval
 
 ## Hold an interval
@@ -45,6 +48,18 @@ end
 
 ## ---- bigfloat speedups
 ## These use MutableArithmetics.jl
+using MutableArithmetics
+const MA = MutableArithmetics
+
+# a,b -> b,a using temporary c
+function swap!(c, a,b)
+    MA.zero!(c)
+    MA.add!(c, b)
+    MA.zero!(b)
+    MA.add!(b, a)
+    MA.zero!(a)
+    MA.add!(a, c)
+end
 
 # a <- a*b+c
 function muladd!(a::T,b::T,c::T) where {T <: BigFloat}
@@ -53,8 +68,7 @@ function muladd!(a::T,b::T,c::T) where {T <: BigFloat}
 end
 
 # allocates less
-function _evalpoly(x, p::Polynomial{T}) where {T}
-    ps = p.coeffs
+function _evalpoly(x, ps::Container{T}) where {T}
     N = length(ps)
     ex = one(T)
     for i in N-1:-1:1
@@ -64,25 +78,33 @@ function _evalpoly(x, p::Polynomial{T}) where {T}
 end
 
 ## --- basic transformations
+
 # p -> p(-x)
-function Base.reverse!(p::Polynomial)
-    reverse!(p.coeffs)
+function Base.reverse!(p::NTuple{N,T}) where {N,T}
+    n = N ÷ 2
+    c = one(T)
+    for i ∈ 1:n
+        j = N + 1 - i
+        pᵢ, pⱼ = p[i], p[j]
+        swap!(c, pᵢ,pⱼ)
+    end
     p
 end
 
 # p -> p(λx)
-function scale!(p::Polynomial{T,X}, λ::S) where {T, X, S <: Number}
+function scale!(p::Container{T}, λ::T) where {T}
     a = one(T)
-    n = length(p.coeffs)
+    n = length(p)
     for i ∈ 2:n
-        pᵢ = p.coeffs[i]
+        pᵢ = p[i]
         MA.mul!(a, λ)
         MA.mul!(pᵢ, a)
     end
     return nothing
 end
-function taylor_shift!(p::Polynomial{T,X}, λ=one(T)) where {T,X}
-    ps = p.coeffs
+
+# p -> p(x + λ)  This is 𝑶(n²) Horner scheme and could be faster
+function taylor_shift!(ps::Container{T}, λ=one(T)) where {T}
     N = length(ps)
     dps = deepcopy(ps)
     MA.zero!.(ps)
@@ -96,7 +118,7 @@ function taylor_shift!(p::Polynomial{T,X}, λ=one(T)) where {T,X}
 end
 
 # p -> p((ax + b)/(x+b))
-function mobius_transform!(p::Polynomial{T}, a, b) where {T}
+function mobius_transform!(p::Container{T}, a, b) where {T}
     taylor_shift!(p, a)
     scale!(p, (b-a))
     reverse!(p)
@@ -118,20 +140,18 @@ precision(x::BigFloat) = Base.MPFR.precision(x)
 function descartesbound(p, a, b, L =  maximum(precision, (a,b)))
     T = BigFloat
     setprecision(L) do
-        q = Polynomial{T,:x}(Val(false), convert(Vector{T}, deepcopy.(p.coeffs)))
-        #        mobius_transform!(q, T(a), T(b))
+        q = T.(deepcopy.(p))
         mobius_transform!(q, T(a), T(b))        
         u = descartescount(q, 1/T(2)^L)
         u
     end
 end
-descartesbound(p::Polynomial{T}) where {T}  = descartescount(p, zero(T))
+descartesbound(p::Container{T}) where {T}  = descartescount(p, zero(T))
 
 # Descartes bound on real roots based on the sign changes 
-function descartescount(q::Polynomial{T}, tol::T) where {T}
-    #    q₀,st = iterate(q.coeffs)
-    n = length(q.coeffs)
-    q₀ = q.coeffs[1]
+function descartescount(q::Container{T}, tol::T) where {T}
+    n = length(q)
+    q₀ = q[1]
 
     tol_ = -tol
     flag = q₀ < tol ? true : false
@@ -139,9 +159,8 @@ function descartescount(q::Polynomial{T}, tol::T) where {T}
 
     cnt = 0
 
-    #    for qᵢ ∈ Iterators.rest(q.coeffs, st)
     for i ∈ 2:n
-        qᵢ = q.coeffs[i]
+        qᵢ = q[i]
         flag′ = qᵢ < tol ? true : false
         flag′ && qᵢ > tol_ && return -1
         if flag′ != flag
@@ -201,7 +220,7 @@ function tₐ(pa)
     return 999999
 end
 
-τ(p::Polynomial{T}) where {T} = max(one(T), log(norm(p, Inf)))
+τ(p::Container{T}) where {T} = max(one(T), log(norm(p, Inf)))
 Mlog(x) = log(max(1, abs(x)))
 
 # In https://people.mpi-inf.mpg.de/~msagralo/RealRootComputation.pdf 0-test
@@ -217,7 +236,7 @@ function zerotest(p, a, b)
     end
     ta, tb = tₐ(a), tₐ(b)
 
-    n = degree(p)
+    n = length(p) - 1
     n′ = sum(divrem(n,2))
 
     L′′ = max(24, L′, max(1, -min(ta-1, tb-1) + 2(n+1) + 1)) 
@@ -237,7 +256,7 @@ function onetest(p, a, b)
     L′ = maximum(precision, (a,b))
     ta, tb = tₐ(a), tₐ(b)
 
-    n = degree(p)
+    n = length(p) - 1
     n′ = sum(divrem(n,2))
 
     ϵ = (b-a) / (4n)
@@ -274,7 +293,6 @@ function newtontest(p, p′, a, b, N)
                     m, w = a + (b-a)/2, b-a
                     ξᵢ, ξⱼ = admissiblepoint(p, a + i*w/4, ϵ * w, n′), admissiblepoint(p, a + j*w/4, ϵ * w, n′)
                     vᵢ,vⱼ = _evalpoly(ξᵢ,p)/_evalpoly(ξᵢ,p′), _evalpoly(ξⱼ,p)/_evalpoly(ξⱼ,p′)
-                    #vᵢ, vⱼ = p(ξᵢ)/p′(ξᵢ), p(ξⱼ)/p′(ξⱼ)
                     if (abs(vᵢ) > w && abs(vⱼ) > w) ||
                         (abs(vᵢ - vⱼ) < w/(4n))
                         # (25) discard pair
@@ -322,7 +340,7 @@ end
 function boundarytest(p, a, b, N)
 
 
-    n = degree(p)
+    n = length(p) - 1
     n′ = sum(divrem(n,2))
     ϵ = 1/2.0^(2 + ceil(Int, log(n)))
     I = 𝑰(a,b,N)
@@ -353,13 +371,13 @@ end
 ## titan.princeton.edu/papers/claire/hertz-etal-99.ps
 function upperbound(p)
     T = BigFloat
-    n = degree(p)
+    n = length(p) - 1
     
     L = 53 + n + ceil(Int, τ(p))
     setprecision(L) do
 
         descartesbound(p) == 0 && return zero(T)
-        q, d = p/p[end], n
+        q, d = p./p[end], n
         
         d == 0 && error("degree 0 is a constant")
         d == 1 && abs(q[1])
@@ -378,7 +396,7 @@ end
 function lowerbound(p)
     q = deepcopy(p)
     scale!(q, -one(eltype(q)))
-    d = degree(q)
+    d = length(q) - 1
     d <= 0 && error("constant")
 
     L = 53 + d + ceil(Int, τ(p))
@@ -457,30 +475,26 @@ Examples:
 ```jldoctest
 julia> ps = [-1, 254, -16129, 0, 0, 0, 0, 1] # mignotte polynomial with two nearby roots
 
-julia> p = Polynomial(ps);
-
-julia> st = ANewDsc(p)
+julia> st = ANewDsc(ps)
 There were 3 isolating intervals found:
 [4.25…, 17.0…]₅₃
-[0.00787401588514…, 0.00787401823709…]₅₃
-[0.00787401381149…, 0.00787401588514…]₅₃
+[0.00787401572688…, 0.00787401786147…]₅₃
+[0.00787401345315…, 0.00787401572688…]₅₃
 
 julia> ps = [3628800, -10628640, 12753576, -8409500, 3416930, -902055, 157773, -18150, 1320, -55, 1]; # πᵢ₌₁¹⁰ (x-i)
 
-julia> p = Polynomial(ps);
-
-julia> st = ANewDsc(p)
+julia> st = ANewDsc(ps)
 There were 10 isolating intervals found:
-[9.5…, 10.2…]₅₃
-[9.0…, 9.5…]₅₃
-[7.75…, 8.5…]₅₃
+[9.75…, 10.2…]₅₃
+[9.0…, 9.75…]₅₃
+[7.75…, 9.0…]₅₃
 [6.0…, 7.75…]₅₃
 [5.38…, 6.12…]₅₃
 [4.5…, 5.38…]₅₃
 [3.12…, 4.5…]₅₃
-[2.44…, 3.19…]₅₃
-[1.78…, 2.44…]₅₃
-[-3.38…, 1.75…]₅₃
+[2.5…, 3.19…]₅₃
+[1.81…, 2.5…]₅₃
+[-3.38…, 1.81…]₅₃
 
 julia> ps =[ # from https://discourse.julialang.org/t/root-isolation-of-real-rooted-integer-polynomials/51421/1
                       942438915208811912419937422298363203125
@@ -500,16 +514,17 @@ julia> ps =[ # from https://discourse.julialang.org/t/root-isolation-of-real-roo
                    740493466743082745510080711751444519503125
                     29215606371473169285018060091249259296875];
 
-julia> ANewDsc(Polynomial(ps), m=-4.0, M=0.0)
+julia> ANewDsc(ps)
 There were 15 isolating intervals found:
-[-0.050293…, 0.0…]₁₇₃
-[-0.10742…, -0.050293…]₁₇₃
-[-0.2021…, -0.1074…]₁₇₃
-[-0.3809…, -0.2021…]₁₇₃
+[-0.053406…, 0.0…]₁₇₃
+[-0.11389…, -0.053406…]₁₇₃
+[-0.2383…, -0.1138…]₁₇₃
+[-0.4492…, -0.2383…]₁₇₃
+[-0.6602…, -0.4492…]₁₇₃
 [...]
 ```
 
-Comparing to some alternatives, we have, the functionality from
+Comparing to some alternatives, we have that the functionality from
 Hecke.jl (`Hecke._roots`) is **much** better. 
 
 However, compared to other alternatives this could be seen as useful:
@@ -605,18 +620,21 @@ improvements (not implemented here).
     reduce allocations with the `BigFloat` type, there are still *far*
     too many allocations; the significant engineering speedups
     suggested by Kobel, Rouillier, and Sagraloff are not implemented;
-    etc. The implementation also is not as careful with floating point
-    considerations as needed and detailed in the paper.
+    etc. 
+
+    This implementation also is not as careful with floating point
+    considerations as needed and detailed in the paper. The broken
+    test with separated roots ~ 1e-100 illustrates this.
 
 
 
 """
 function ANewDsc(q; m=lowerbound(q), M=upperbound(q), max_depth=96)
     
-    p = Polynomial(BigFloat.(coeffs(q)))
-    n = degree(p)
+    p = BigFloat.(q)
+    n = length(p) - 1
     n′ = sum(divrem(n,2))
-    p′ = derivative(p)
+    p′ = [i*p[i+1] for i ∈ 1:n]
 
     L = maximum(precision∘float, (m, M))
     m′, M′ = setprecision(L) do
@@ -633,7 +651,7 @@ function ANewDsc(q; m=lowerbound(q), M=upperbound(q), max_depth=96)
     while !isempty(Internal)
         I = pop!(Internal)
         a,b = I
-        
+
         # are we resolved sufficiently
         if zerotest(p, a, b)
             continue
@@ -654,7 +672,7 @@ function ANewDsc(q; m=lowerbound(q), M=upperbound(q), max_depth=96)
         L = maximum(precision, (a, b))        
         
         pa, pb = setprecision(L) do
-            p(a), p(b)
+            _evalpoly(a,p), _evalpoly(b,p)
         end
 
         if iszero(pa) || iszero(pb)
