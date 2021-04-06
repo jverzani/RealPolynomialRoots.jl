@@ -1,50 +1,127 @@
-## ---- Interval
+# Refactored from https://github.com/JuliaMath/Polynomials.jl/pull/331
+using MutableArithmetics
+const MA = MutableArithmetics
 
-## Hold an interval
-struct 𝑰
-    a::BigFloat
-    b::BigFloat
-    N::Base.Ref{Int}
-    Depth::Base.Ref{Int}
+## --------
+## What do I want?
+## fast transform
+## fast evaluations -- use NTuple{N,BigFloat}
+## fast transformations -- use MA
+
+# # Some in place operations used in mobius_transform!
+
+## set up mobius for ImmutablePolynomial
+
+
+
+# p -> p(-x)
+function Base.reverse!(p::Polynomial)
+    reverse!(p.coeffs)
+    p
 end
 
-function 𝑰(a,b, n::Int=4, depth::Int=1)
-    L = maximum(precision, (a,b))
-    a′, b′ = setprecision(L) do
-        big(a), big(b)
+# function Base.reverse!(p::IP)
+#     _reverse!(p.coeffs)
+#     nothing
+# end
+
+# function _reverse!(p)
+#     n = length(p)
+#     c = zero(eltype(p))
+#     for i ∈ 1:(n÷2)
+#         j = n + 1 - i
+#         @inbounds pᵢ,pⱼ = p[i], p[j]
+#         MA.zero!(c)
+#         MA.add!(c,pᵢ)
+#         MA.zero!(pᵢ)
+#         MA.add!(pᵢ,pⱼ)
+#         MA.zero!(pⱼ)
+#         MA.add!(pⱼ,c)
+#     end
+#     nothing
+# end
+
+# function Base.reverse(p::IP)
+#     IP(reverse(p.coeffs))
+# end
+
+
+
+# p -> p(λx)
+function scale!(p::Polynomial{T,X}, λ::S) where {T, X, S <: Number}
+    a = one(T)
+    p₁,st = iterate(p.coeffs)
+    for pᵢ ∈ Iterators.rest(p.coeffs, st)
+        MA.mul!(a, λ)
+        MA.mul!(pᵢ, a)
     end
-    𝑰(a′, b′, Ref(n), Ref(depth))
-end
-
-## An interval can be iterated over to return the end points
-Base.length(I::𝑰) = 2
-function Base.iterate(I::𝑰, state=nothing)
-    isnothing(state) && return (I.a, 1)
-    isone(state) && return (I.b, 2)
     return nothing
-end        
 
-function Base.show(io::IO, I::𝑰)
-    a, b = I.a, I.b
-    L = maximum(precision, (a,b))
-
-    L′ = max(0, ceil(Int, -log2(b-a))) + 5
-    ds = ceil(Int, -log10(b-a)) + 5
-    
-    sbs = ("₋","","","₀","₁","₂","₃","₄","₅","₆","₇","₈","₉")
-    iob = IOBuffer()
-    for i in string(L)
-        print(iob, sbs[Int(i)-44])
-    end
-    ind = String(take!(iob))
-
-    setprecision(L′) do
-        print(io, "[$(round(a, digits=ds))…, $(round(b, digits=ds))…]$ind")
-    end
+    # a = λ
+    # for i in 2:length(p.coeffs)
+    #     @inbounds p.coeffs[i] *= a
+    #     a *= λ
+    # end
+    # nothing
 end
 
-## ---- bigfloat speedups
-## These use MutableArithmetics.jl
+# # p -> p(λx)
+# function scale!(p::IP{T,X}, λ::T) where {T,X}
+#     a = one(T)
+#     p₁,st = iterate(p.coeffs)
+#     for pᵢ ∈ Iterators.rest(p.coeffs, st)
+#         MA.mul!(a, λ)
+#         MA.mul!(pᵢ, a)
+#     end
+#     return nothing
+# end
+export scale!
+
+
+export taylor_shift, taylor_shift!
+function taylor_shift!(p::Polynomial{T,X}, λ=one(T)) where {T,X}
+    ps = p.coeffs
+    N = length(ps)
+    dps = deepcopy(ps)
+    MA.zero!.(ps)
+    @inbounds for i in N:-1:1
+        for j in N:-1:2
+            muladd!(ps[j], λ, ps[j-1])
+        end
+        muladd!(ps[1], λ, dps[i])
+    end
+    return nothing
+    
+    # n = length(p.coeffs)
+    # dps = zeros(T, n)
+    # for i in n:-1:1
+    #     for j in n:-1:2
+    #         @inbounds dps[j] = muladd(dps[j], λ, dps[j-1])
+    #     end
+    #     @inbounds dps[1] = muladd(dps[1], λ, p.coeffs[i])
+    # end
+
+    # copy!(p.coeffs, dps)
+
+    # nothing
+
+end
+
+
+
+# function taylor_shift!(p::IP{T,X}, λ::T=one(T)) where {T,X}
+#     ps = p.coeffs
+#     N = length(ps)
+#     dps = deepcopy(ps)
+#     MA.zero!.(ps)
+#     @inbounds for i in N:-1:1
+#         for j in N:-1:2
+#             muladd!(ps[j], λ, ps[j-1])
+#         end
+#         muladd!(ps[1], λ, dps[i])
+#     end
+#     nothing
+# end
 
 # a <- a*b+c
 function muladd!(a::T,b::T,c::T) where {T <: BigFloat}
@@ -62,38 +139,22 @@ function _evalpoly(x, p::Polynomial{T}) where {T}
     end
     ex
 end
+export _evalpoly
+# function taylor_shift(p::IP{T,X,N}, λ=1) where {T,X,N}
+#     ps = p.coeffs
+#     dps = zeros(T,N)
+#     for i in N:-1:1
+#         for j in N:-1:2
+#             muladd!(dps[j], λ, dps[j-1])
+#         end
+#         muladd!(dps[1], λ, ps[i])
+#     end
+#     IP{T,X,N}(dps)
+# end
 
-## --- basic transformations
-# p -> p(-x)
-function Base.reverse!(p::Polynomial)
-    reverse!(p.coeffs)
-    p
-end
 
-# p -> p(λx)
-function scale!(p::Polynomial{T,X}, λ::S) where {T, X, S <: Number}
-    a = one(T)
-    n = length(p.coeffs)
-    for i ∈ 2:n
-        pᵢ = p.coeffs[i]
-        MA.mul!(a, λ)
-        MA.mul!(pᵢ, a)
-    end
-    return nothing
-end
-function taylor_shift!(p::Polynomial{T,X}, λ=one(T)) where {T,X}
-    ps = p.coeffs
-    N = length(ps)
-    dps = deepcopy(ps)
-    MA.zero!.(ps)
-    @inbounds for i in N:-1:1
-        for j in N:-1:2
-            muladd!(ps[j], λ, ps[j-1])
-        end
-        muladd!(ps[1], λ, dps[i])
-    end
-    return nothing
-end
+
+
 
 # p -> p((ax + b)/(x+b))
 function mobius_transform!(p::Polynomial{T}, a, b) where {T}
@@ -104,23 +165,50 @@ function mobius_transform!(p::Polynomial{T}, a, b) where {T}
     nothing
 end      
 
+# function mobius_transform!(p::IP{T}, a, b) where {T}
+#     taylor_shift!(p, a)
+#     scale!(p, (b-a))
+#     reverse!(p)
+#     taylor_shift!(p, one(T))
+#     nothing
+# end      
+
+
+
+# function mobius_transform(p::IP{T}, a, b) where {T}
+#     taylor_shift!(p, a)
+#     scale!(p, b-a)
+#     q = reverse(p)
+#     taylor_shift!(q, one(T))
+#     q
+# end
+export mobius_transform!
+
 
 ## -----
 
 const DEF_PRECISION = 53 
 
+
 ## Find precision of a big float
 precision(x::Float64) = DEF_PRECISION
 precision(x::BigFloat) = Base.MPFR.precision(x)
 
-## -----
-
+# function descartesbound(p::IP, a, b, L =  maximum(precision, (a,b)))
+#     T = BigFloat
+#     setprecision(L) do
+#         q = IP(T.(deepcopy.(p.coeffs)))#deepcopy(p)
+#         mobius_transform!(q, T(a), T(b))
+#         u = descartescount(q, 1/T(2)^L)
+#         u
+#     end
+# end
+export descartesbound
 function descartesbound(p, a, b, L =  maximum(precision, (a,b)))
     T = BigFloat
     setprecision(L) do
         q = Polynomial{T,:x}(Val(false), convert(Vector{T}, deepcopy.(p.coeffs)))
-        #        mobius_transform!(q, T(a), T(b))
-        mobius_transform!(q, T(a), T(b))        
+        mobius_transform!(q, T(a), T(b))
         u = descartescount(q, 1/T(2)^L)
         u
     end
@@ -128,31 +216,19 @@ end
 descartesbound(p::Polynomial{T}) where {T}  = descartescount(p, zero(T))
 
 # Descartes bound on real roots based on the sign changes 
-function descartescount(q::Polynomial{T}, tol::T) where {T}
-    #    q₀,st = iterate(q.coeffs)
-    n = length(q.coeffs)
-    q₀ = q.coeffs[1]
-
-    tol_ = -tol
-    flag = q₀ < tol ? true : false
-    flag && q₀ > tol_ && return -1
-
-    cnt = 0
-
-    #    for qᵢ ∈ Iterators.rest(q.coeffs, st)
-    for i ∈ 2:n
-        qᵢ = q.coeffs[i]
-        flag′ = qᵢ < tol ? true : false
-        flag′ && qᵢ > tol_ && return -1
-        if flag′ != flag
+function descartescount(q::P, tol::T) where {T, P<:Polynomials.StandardBasisPolynomial{T}}
+    cnt = -1
+    s = zero(T)
+    for qᵢ in q.coeffs
+        -tol < qᵢ < tol && return -1
+        sᵢ = sign(qᵢ)
+        if sᵢ != s
+            s = sᵢ
             cnt += 1
-            flag = flag′
         end
     end
     cnt
 end
-
-## ----
 
 # m[ϵ] evenly spaced points in B(x,ϵ)
 function multipoint(m, ϵ, n′)
@@ -176,6 +252,7 @@ function admissiblepoint(p, m, ϵ, n)
             mx, vx = zero(T), zero(T)
             for mᵢ in multipoint(T(m), T(ϵ), n)
                 vᵢ = abs(_evalpoly(mᵢ, p))
+                #vᵢ = abs(p(mᵢ))
                 if vᵢ > vx
                     vx, mx = vᵢ, mᵢ
                 end
@@ -183,16 +260,58 @@ function admissiblepoint(p, m, ϵ, n)
             if vx > tol
                 return T(mx)
             end
-            return nothing
         end
         out != nothing && return out
         L = 2 * L
     end
     #@warn "no admissible point found"
-    return T(m) # pray?
+    return m # pray?
 end
 
-## ---- Tests (onetest, zerotest, newtontest, boundarytest)
+## Hold an interval
+struct Interval{T}
+    a::T
+    b::T
+    N::Base.Ref{Int}
+    Depth::Base.Ref{Int}
+end
+
+function Interval(a,b, n::Int=4, depth::Int=1)
+    L = maximum(precision, (a,b))
+    a′, b′ = setprecision(L) do
+        big(a), big(b)
+    end
+    Interval(a′, b′, Ref(n), Ref(depth))
+end
+
+## An interval can be iterated over to return the end points
+Base.length(I::Interval) = 2
+function Base.iterate(I::Interval, state=nothing)
+    isnothing(state) && return (I.a, 1)
+    isone(state) && return (I.b, 2)
+    return nothing
+end        
+
+function Base.show(io::IO, I::Interval)
+    a, b = I.a, I.b
+    L = maximum(precision, (a,b))
+
+    L′ = max(0, ceil(Int, -log2(b-a))) + 5
+    ds = ceil(Int, -log10(b-a)) + 5
+    
+    sbs = ("₋","","","₀","₁","₂","₃","₄","₅","₆","₇","₈","₉")
+    iob = IOBuffer()
+    for i in string(L)
+        print(iob, sbs[Int(i)-44])
+    end
+    ind = String(take!(iob))
+
+    setprecision(L′) do
+        print(io, "[$(round(a, digits=ds))…, $(round(b, digits=ds))…]$ind")
+    end
+end
+
+## ---
 
 function tₐ(pa)
     apa = abs(pa)
@@ -230,9 +349,9 @@ function zerotest(p, a, b)
     return false
     
 end
+export zerotest, onetest
 
 function onetest(p, a, b)
-    T = BigFloat
     a >= b && return false
     L′ = maximum(precision, (a,b))
     ta, tb = tₐ(a), tₐ(b)
@@ -245,7 +364,7 @@ function onetest(p, a, b)
     mstar = setprecision(L′) do
         admissiblepoint(p, a + (b-a)/2, ϵ, n′)
     end
-    t::T = tₐ(mstar)
+    t = tₐ(mstar)
     
     L′′ = max(24, L′, max(1, -min(ta-1, tb-1, t-1) + 4(n+2))) 
     L = ceil(Int, n + τ(p) + n * log(max(1, abs(a))) + n * log(max(1, abs(b))) + L′′)
@@ -258,12 +377,12 @@ function onetest(p, a, b)
     return false
 
 end
-
+export newtontest
 function newtontest(p, p′, a, b, N)
     n = length(p) - 1
     n′ = sum(divrem(n, 2))
     ϵ = 1/(2^ceil(Int, 5 + log(n))) 
-    I = 𝑰(a,b,N)
+#    I = Interval(a,b)
     L = maximum(precision, (a,b))
 
     for i in (1,2,3)
@@ -296,10 +415,9 @@ function newtontest(p, p′, a, b, N)
                         b⁺ᵢⱼ = (bᵢⱼ == b) ? b : admissiblepoint(p, bᵢⱼ, ϵ * w/N, n′)
                         (isnan(b⁺ᵢⱼ) || isinf(b⁺ᵢⱼ)) && return false, I
                         !zerotest(p, b⁺ᵢⱼ, b) && return false, I
-                        return true, 𝑰(a⁺ᵢⱼ, b⁺ᵢⱼ)
+                        return true, Interval(a⁺ᵢⱼ, b⁺ᵢⱼ)
                     end
-                    #return (nothing, I)
-                    return (false, I)                    
+                    return (nothing, I)
                 end
                 if val == nothing
                     L′ *= 2
@@ -316,16 +434,16 @@ function newtontest(p, p′, a, b, N)
 end
 
 
-# retrun (0, I) -- no root in I
-# return (1, J) can reduce interval
-# return (-1, I) can't trim, use linear
+# retrun (nothing, I) -- no root in I
+# return (true, J) can reduce interval
+# return (false, I) can't trim, use linear
 function boundarytest(p, a, b, N)
 
 
     n = degree(p)
     n′ = sum(divrem(n,2))
     ϵ = 1/2.0^(2 + ceil(Int, log(n)))
-    I = 𝑰(a,b,N)
+
     L = maximum(precision, (a,b))
 
     setprecision(L) do
@@ -335,30 +453,34 @@ function boundarytest(p, a, b, N)
         
         mₗ, mᵣ = a + w/(2N), b - w/(2N)
         mₗ⁺, mᵣ⁺ = admissiblepoint(p, mₗ, ϵ*w/N, n′), admissiblepoint(p, mᵣ, ϵ*w/N, n′)
-        a < mₗ⁺ <= mᵣ⁺ < b || return (-1, I)
+        a < mₗ⁺ <= mᵣ⁺ < b || return (false, I)
         
         zₗ, zᵣ = zerotest(p, mₗ⁺, b), zerotest(p, a, mᵣ⁺)
         
-        zₗ && zᵣ && return (0, I) # no root        
-        zₗ && return (1, 𝑰(a, mₗ⁺))
-        zᵣ && return (1, 𝑰(mᵣ⁺, b))
-        (-1, I)
+        zₗ && zᵣ && return (nothing, I) # no root
+        zₗ && return (true, Interval(a, mₗ⁺))
+        zᵣ && return (true, Interval(mᵣ⁺, b))
+        (false, I)
     end
 
 end
 
-## ----
-
+        
 ## Upper bound on size of real roots that is tighter than cauchy
 ## titan.princeton.edu/papers/claire/hertz-etal-99.ps
 function upperbound(p)
     T = BigFloat
+    #setprecision(DEF_PRECISION) do
+
     n = degree(p)
     
     L = 53 + n + ceil(Int, τ(p))
     setprecision(L) do
-
+        #pp = p.coeffs[findfirst(!iszero, p.coeffs):end]
         descartesbound(p) == 0 && return zero(T)
+        
+        #p = p[findfirst(!iszero, p):end]
+        
         q, d = p/p[end], n
         
         d == 0 && error("degree 0 is a constant")
@@ -376,6 +498,8 @@ function upperbound(p)
 end
 
 function lowerbound(p)
+#    q,d = copy(p), degree(p)
+    #    poly_invert!(q) #reverse!(q)
     q = deepcopy(p)
     scale!(q, -one(eltype(q)))
     d = degree(q)
@@ -387,12 +511,10 @@ function lowerbound(p)
     end
 end
 
-## ----
-
 # hold the state
 struct State{N,T}
-    Isol::Vector{𝑰}                        # DesBound == 1
-    Unresolved::Vector{𝑰}
+    Isol::Vector{Interval{BigFloat}}                        # DesBound == 1
+    Unresolved::Vector{Interval{BigFloat}}
     p::NTuple{N,T}
 end
 
@@ -435,12 +557,10 @@ function Base.show(io::IO, st::State)
     
 end
 
-## ----
-
 """
     ANewDsc(p; [m=lowerbound(p)], [M=upperbound(p)])
 
-A method to find isolating intervals for the real roots of a square-free polynomial specified by `p`.
+A method to find isolating intervals for the real roots of the polynomial specified by `p`.
 
 * `p`: the polynomial coefficients, `[a₀, a₁, …, aₙ]`, of a **square-free** polynomial.
 * `m`: a lower bound for the smallest possible real root
@@ -457,30 +577,26 @@ Examples:
 ```jldoctest
 julia> ps = [-1, 254, -16129, 0, 0, 0, 0, 1] # mignotte polynomial with two nearby roots
 
-julia> p = Polynomial(ps);
-
-julia> st = ANewDsc(p)
+julia> st = ANewDsc(ps)
 There were 3 isolating intervals found:
-[4.25…, 17.0…]₅₃
-[0.00787401588514…, 0.00787401823709…]₅₃
-[0.00787401381149…, 0.00787401588514…]₅₃
+[3.0…, 9.5…]₅₃
+[0.00787401589014…, 0.00787401713433…]₅₃
+[0.00787401479283…, 0.00787401589014…]₅₃
 
 julia> ps = [3628800, -10628640, 12753576, -8409500, 3416930, -902055, 157773, -18150, 1320, -55, 1]; # πᵢ₌₁¹⁰ (x-i)
 
-julia> p = Polynomial(ps);
-
-julia> st = ANewDsc(p)
+julia> st = ANewDsc(ps)
 There were 10 isolating intervals found:
-[9.5…, 10.2…]₅₃
-[9.0…, 9.5…]₅₃
-[7.75…, 8.5…]₅₃
-[6.0…, 7.75…]₅₃
-[5.38…, 6.12…]₅₃
-[4.5…, 5.38…]₅₃
-[3.12…, 4.5…]₅₃
-[2.44…, 3.19…]₅₃
-[1.78…, 2.44…]₅₃
-[-3.38…, 1.75…]₅₃
+[9.5…, 11.5…]₈₀
+[8.75…, 9.5…]₈₀
+[7.75…, 8.5…]₈₀
+[6.75…, 7.75…]₈₀
+[5.25…, 6.75…]₈₀
+[4.5…, 5.25…]₈₀
+[3.56…, 4.5…]₈₀
+[2.62…, 3.5…]₈₀
+[1.69…, 2.56…]₈₀
+[-0.0…, 1.69…]₈₀
 
 julia> ps =[ # from https://discourse.julialang.org/t/root-isolation-of-real-rooted-integer-polynomials/51421/1
                       942438915208811912419937422298363203125
@@ -500,31 +616,51 @@ julia> ps =[ # from https://discourse.julialang.org/t/root-isolation-of-real-roo
                    740493466743082745510080711751444519503125
                     29215606371473169285018060091249259296875];
 
-julia> ANewDsc(Polynomial(ps), m=-4.0, M=0.0)
+julia> ANewDsc(ps, m=-4.0, M=0.0)
 There were 15 isolating intervals found:
-[-0.050293…, 0.0…]₁₇₃
-[-0.10742…, -0.050293…]₁₇₃
-[-0.2021…, -0.1074…]₁₇₃
-[-0.3809…, -0.2021…]₁₇₃
+[-0.053772…, 0.0…]₅₃
+[-0.11475…, -0.053772…]₅₃
+[-0.2451…, -0.1147…]₅₃
 [...]
 ```
 
-Comparing to some alternatives, we have, the functionality from
-Hecke.jl (`Hecke._roots`) is **much** better. 
+To find the zeros, the `Roots` package may be used. For example:
 
-However, compared to other alternatives this could be seen as useful:
+```
+julia> using Roots
+
+julia> ps = [-1, 254, -16129, 0, 0, 0, 0, 1];
+
+julia> st = ANewDsc(ps)
+There were 3 isolating intervals found:
+[3.0…, 9.5…]₅₃
+[0.00787401589014…, 0.00787401713433…]₅₃
+[0.00787401479283…, 0.00787401589014…]₅₃
+
+julia> [find_zero(st, I, Roots.BisectionExact()) for I ∈ st]
+3-element Array{BigFloat,1}:
+ 6.93943740962139212443671349244761027220068050171218581650766763204507611476287
+ 0.00787401608913275440360872789877972713419346419425478522830844323313969358762523
+ 0.007874015406930341157555003028161633376551552518768059431667490175426147375209448
+```
+
+The default bracketing method for `BigFloat` can have issues with some problems, so we use `BisectionExact` above. Alternatively, `Roots.bisection(st, I...)` may be used.
+
+Comparing to some alternatives, we have, the functionality from
+Hecke.jl (`Hecke._roots`) is much better. However, compared to others this
+could be seen as useful:
 
 ```
 julia> x = variable(Polynomial);
 
 julia> p = -1 + 254*x - 16129*x^2 + x^15;
 
-julia> @time real_roots(p)
-  0.114760 seconds (664.03 k allocations: 35.719 MiB, 14.09% gc time)
-3-element Vector{AbstractFloat}:
- 2.1057742291764834
- 0.007874015748031497374190409031015351762713667398747530835438348975
- 0.0078740157480314949573666522672607058737133311592752406327723222706
+julia> @time real_roots(p) # ANewDsc(coeffs(p))
+  0.091078 seconds (2.41 M allocations: 106.406 MiB, 27.02% gc time)
+There were 3 isolating intervals found:
+[0.781…, 3.12…]₅₃
+[0.00787401574803149570638…, 0.00787401574803149913348…]₂₁₂
+[0.0078740157480314918219…, 0.0078740157480314957064…]₂₁₂
 
 julia> filter(isreal, roots(p)) # much faster, but misses two roots with imaginary part ~ 1e-10
 1-element Array{Complex{Float64},1}:
@@ -534,18 +670,12 @@ julia> filter(isreal, AMRVW.roots(Float64.(coeffs(p)))) # using AMRVW. Similarly
 1-element Array{Complex{Float64},1}:
  2.1057742291764407 + 0.0im
 
-julia> filter(isreal, AMRVW.roots(BigFloat.(coeffs(p)))) # this works here
-3-element Vector{Complex{BigFloat}}:
- 0.007874015748031494751793842937491860399146218747427882112208862187156603046408902 + 0.0im
- 0.007874015748031497374190409031015351762713667398750832139185145345899098824178322 + 0.0im
-    2.105774229176482954331883383107195997983004314462374928263620342390986189650864 + 0.0im
-
 julia> filter(isreal, PolynomialRoots.roots(coeffs(p))) # using PolynomialRoots. Misses 2.105?
 2-element Array{Complex{Float64},1}:
    0.0078740158234482 + 0.0im
  0.007874015672614794 + 0.0im
 
-julia> IntervalRootFinding.roots(x->p(x), IntervalArithmetic.Interval(0.0, 5.0)) # using IntervalRootFinding, IntervalArithmetic
+julia> IntervalRootFinding.roots(f, IntervalArithmetic.Interval(0.0, 5.0)) # using IntervalRootFinding, IntervalArithmetic
 8-element Array{Root{IntervalArithmetic.Interval{Float64}},1}:
  Root([0.00787395, 0.00787397], :unknown)
  Root([0.00787303, 0.00787305], :unknown)
@@ -591,28 +721,21 @@ compute the Descartes' bound, in addition to other algorithmic
 improvements (not implemented here).
 
 !!! note
+    This implementation is 𝑶(n²); much slower than the `Hecke._roots`
+    function provided through `arblib` in `Hecke.jl`, which itself
+    says is not competitive with more specialized algorithms, such as
+    provided in the RS library of the paper authors.
+
+!!! note
     A square free polynomial can be found through `p/gcd(p, p')`,
     though in practice this calculation is numerically unstable.
-
-!!! note This implementation is **much** slower than the
-    `Hecke._roots` function provided through `arblib` in `Hecke.jl`,
-    which itself says is not competitive with more specialized
-    algorithms, such as provided in the RS library of the paper
-    authors. There are several reasons: The `mobius_transform!`
-    function is 𝑶(n²), and could be 𝑶(n⋅log(n)) with more effort; the
-    polynomial evaluation in `admissiblepoint` could, similarly, be
-    made more efficient; despite using `MutableArithmetics.jl` to
-    reduce allocations with the `BigFloat` type, there are still *far*
-    too many allocations; the significant engineering speedups
-    suggested by Kobel, Rouillier, and Sagraloff are not implemented;
-    etc. The implementation also is not as careful with floating point
-    considerations as needed and detailed in the paper.
-
 
 
 """
 function ANewDsc(q; m=lowerbound(q), M=upperbound(q), max_depth=96)
     
+    DEBUG=false
+
     p = Polynomial(BigFloat.(coeffs(q)))
     n = degree(p)
     n′ = sum(divrem(n,2))
@@ -624,7 +747,7 @@ function ANewDsc(q; m=lowerbound(q), M=upperbound(q), max_depth=96)
     end
 
     
-    I = 𝑰(m′, M′)
+    I = Interval(m′, M′)
     I.N[], I.Depth[] = 4, 1
     Internal = [I]
     Isol = typeof(I)[]
@@ -643,9 +766,11 @@ function ANewDsc(q; m=lowerbound(q), M=upperbound(q), max_depth=96)
             push!(Isol, I)
             continue
         end
+
         
         ## pump the brakes, if needed
         if I.Depth[] > max_depth
+            DEBUG && @show :max_depth
             push!(Unresolved, I)
             continue
         end
@@ -658,6 +783,7 @@ function ANewDsc(q; m=lowerbound(q), M=upperbound(q), max_depth=96)
         end
 
         if iszero(pa) || iszero(pb)
+            DEBUG && @show :early_zero
             push!(Unresolved, I)
             continue
         end
@@ -669,16 +795,18 @@ function ANewDsc(q; m=lowerbound(q), M=upperbound(q), max_depth=96)
         val, J = newtontest(p, p′, a, b, N)
         if val
             λ = Float64((I.b-I.a)/(J.b - J.a))
+            DEBUG && @show :newton, λ, J
             J.N[], J.Depth[] = N^2, depth′ 
             push!(Internal, J)
             continue
         end
         
         val, J = boundarytest(p, a, b, N)
-        if val == 0
+        if val == nothing
             # no root
             continue
-        elseif val == 1
+        elseif val
+            DEBUG && @show :boundary
             J.N[], J.Depth[] = N, depth′             
             push!(Internal, J)
             continue
@@ -690,8 +818,9 @@ function ANewDsc(q; m=lowerbound(q), M=upperbound(q), max_depth=96)
             m = a + (b-a)/2
             c = admissiblepoint(p, m, w/32, n′)
             N′ = max(4, ceil(Int, sqrt(N)))
-            push!(Internal, 𝑰(a,c, N′, depth′))
-            push!(Internal, 𝑰(c,b, N′, depth′))
+            DEBUG && @show :linear
+            push!(Internal, Interval(a,c, N′, depth′))
+            push!(Internal, Interval(c,b, N′, depth′))
         end
     end
     
@@ -701,3 +830,7 @@ function ANewDsc(q; m=lowerbound(q), M=upperbound(q), max_depth=96)
 end
 
 
+## ps = [3628800, -10628640, 12753576, -8409500, 3416930, -902055, 157773, -18150, 1320, -55, 1]
+## p = IP(ps)
+## @btime ANewDesc(p)
+## 84.536 ms (900254 allocations: 59.95 MiB)
