@@ -1,14 +1,13 @@
 module RealPolynomialRoots
 
 using LinearAlgebra
-using Random
-using Polynomials
-using Roots
 
-
+include("bigfloat-utils.jl")
+include("interval-arithmetic.jl")
+include("descartes-bound.jl")
 include("anewdsc.jl")
-include("real_roots.jl")
+include("refine-roots.jl")
 
-export ANewDsc, real_roots
+export ANewDsc, refine_roots
 
 end
