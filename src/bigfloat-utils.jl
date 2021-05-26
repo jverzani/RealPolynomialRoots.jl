@@ -9,8 +9,8 @@
 Big(a;precision=53) = BigFloat(a; precision=precision)
 
 #import Base: precision
-precision(x::Float64) = 53
-precision(x::BigFloat) = Base.MPFR.precision(x)
+precision(x::Float64) = Int(53)
+precision(x::BigFloat) = Int(Base.MPFR.precision(x))
 
 ## ---- bigfloat
 ## We add some methods from libmpfr to give rounding
