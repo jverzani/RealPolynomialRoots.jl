@@ -12,10 +12,10 @@ Example:
 julia> ps = [-1, 254, -16129, 0, 0, 0, 0, 1] # mignotte polynomial with two nearby roots
 
 julia> ANewDsc(ps)
-There were 3 isolating intervals found:
-[3.0…, 9.5…]₅₃
-[0.00787401589014…, 0.00787401713433…]₅₃
-[0.00787401479283…, 0.00787401589014…]₅₃
+here were 3 isolating intervals found:
+[3.5…, 7.75…]₅₃
+[0.00787401549792…, 0.00787401631942…]₆₂
+[0.00787401465686…, 0.00787401549792…]₆₂
 
 
 julia> ps =[ # from https://discourse.julialang.org/t/root-isolation-of-real-rooted-integer-polynomials/51421
@@ -38,30 +38,44 @@ julia> ps =[ # from https://discourse.julialang.org/t/root-isolation-of-real-roo
 
 julia> ANewDsc(ps)
 There were 15 isolating intervals found:
-[-0.048706…, 0.0…]₁₇₃
-[-0.10388…, -0.048706…]₁₇₃
-[-0.1953…, -0.104…]₁₇₃
-[-0.3691…, -0.1953…]₁₇₃
-[-0.6953…, -0.3672…]₁₇₃
-[-1.0…, -0.6953…]₁₇₃
-[-1.344…, -1.0…]₁₇₃
-[-1.688…, -1.344…]₁₇₃
-[-2.062…, -1.688…]₁₇₃
-[-2.469…, -2.062…]₁₇₃
-[-2.844…, -2.469…]₁₇₃
-[-3.25…, -2.844…]₁₇₃
-[-3.594…, -3.25…]₁₇₃
-[-3.797…, -3.594…]₁₇₃
-[-4.0…, -3.797…]₁₇₃
+[-0.02588…, 0.04956…]₂₅₆
+[-0.1011…, -0.02588…]₂₅₆
+[-0.252…, -0.1011…]₂₅₆
+[-0.4004…, -0.252…]₂₅₆
+[-0.7031…, -0.4023…]₂₅₆
+[-1.0…, -0.7031…]₂₅₆
+[...]
+```
+
+The `refine_roots` method refines the isolating intervals down to
+diameter `1/2^L` and then takes the midpoint:
 
 ```
+julia> ps = [-1, 254, -16129, 0, 0, 0, 0, 1];
+
+julia> (refine_roots ∘ ANewDsc)(ps)
+3-element Vector{BigFloat}:
+ 6.9394374096213921244363...
+ 0.0078740160891327543304...
+ 0.0078740154069303411295...
+ ```
 
 The algorithm used is based on 
 
-Computing Real Roots of Real Polynomials ... and now For Real!
+*Computing Real Roots of Real Polynomials ... and now For Real!*
 by Alexander Kobel, Fabrice Rouillier, Michael Sagraloff
-arXiv:1605.00410; DOI:	10.1145/2930889.2930937
+[arXiv](1605.00410) [DOI](https://doi.org/10.1145/2930889.2930937)
+
+More detail on the algorithm is found in
+
+Computing real roots of real polynomials
+Michael Sagraloff, Kurt Mehlhorn
+[DOI](https://doi.org/10.1016/j.jsc.2015.03.004)
 
 
-Performance could be **significantly** improved (polynomials of degree 10,000 or more are tractable with the algorithm, but this implementations only scales up to degree 100 or so). The `Hecke.jl` package has a much faster alternative.
+
+The performance of this implementation could be **significantly**
+improved upon: polynomials of degree 10,000 or more are tractable with
+the algorithm, but this implementation gets pretty sluggish on random
+polynomials of degree 250.
 
