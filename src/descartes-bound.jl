@@ -1,7 +1,5 @@
 Container{T} = Union{AbstractVector{T}, NTuple{N,T}} where {N}
 
-
-
 ## ---- basic transformations needed for Mobius transform
 
 # p -> p(-x)
@@ -91,7 +89,8 @@ function mobius_transform!(p::Container{T}, a, b) where {T}
     nothing
 end      
 
-function Xmobius_transform!(p::Container{T}, a, b) where {T}
+# basic structure of above without the storage setup to lessen allocations
+function _mobius_transform!(p::Container{T}, a, b) where {T}
     taylor_shift!(p, a)
     scale!(p, (b-a))
     reverse!(p)

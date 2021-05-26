@@ -237,7 +237,7 @@ end
 #
 # return (true, J) can reduce interval with J ≈≤ w(I)/N
 # return (false, I) can't trim, use linear
-# no root in I throws an error
+# no root in I should throw an error
 function boundarytest(p, I, nᴵ)
     a, b = I
     nᴵ = min(5, nᴵ)
@@ -246,7 +246,7 @@ function boundarytest(p, I, nᴵ)
     n = length(p) - 1
     n′ = sum(divrem(n,2))
     ϵ = 1/2.0^(2 + ceil(Int, log(n)))
-    I = 𝐈(a,b)
+
     L = maximum(precision, (a,b))
 
     w, m, mₗ, mᵣ = setprecision(L) do
@@ -255,13 +255,15 @@ function boundarytest(p, I, nᴵ)
         mₗ, mᵣ = a + w/(2N), b - w/(2N)
         w, m, mₗ, m
     end
-    mₗ⁺, mᵣ⁺ = admissiblepoint(p, mₗ, ϵ*w/N, n′), admissiblepoint(p, mᵣ, ϵ*w/N, n′)
+
+    ϵ′ = ϵ*w/N
+    mₗ⁺, mᵣ⁺ = admissiblepoint(p, mₗ, ϵ′, n′), admissiblepoint(p, mᵣ, ϵ′, n′)
 
     zₗ, zᵣ = zerotest(p, (mₗ⁺, b)), zerotest(p, (a, mᵣ⁺))
-    zₗ && zᵣ && error("No root in I $a, $mᵣ⁺, $mₗ⁺  $b")
+    zₗ && zᵣ && return (false, 𝐈(a,b)) #error("No root in I $a, $mᵣ⁺, $mₗ⁺  $b")
     zₗ && return (true, 𝐈(a, mₗ⁺))
     zᵣ && return (true, 𝐈(mᵣ⁺, b))
-    return (false, I)
+    return (false, 𝐈(a,b))
 
 end
 
@@ -303,10 +305,12 @@ end
 ## titan.princeton.edu/papers/claire/hertz-etal-99.ps
 ## δ is buffer ensure interval endpoint do not include roots
 function upperbound(p, δ = 1/2)
+
     T = BigFloat
     n = length(p) - 1
     n > 0 || return δ
     L = 2 + n + ceil(Int, τ(p)) #+ 53
+    
     setprecision(L) do
         descartescount(p) == 0 && return zero(T) + δ
         q, d = p./p[end], n
@@ -321,13 +325,11 @@ function upperbound(p, δ = 1/2)
         out = (-b + sqrt(b^2 - 4a*c))/2
         out + δ
     end
+    
 end
 
 function lowerbound(p)
     q = [(isodd(i) ? 1 : -1)*p[i] for i ∈ eachindex(p)]
-    # d = length(q) - 1
-    # d <= 0 && return -1
-
     return -upperbound(q)
 end
 
@@ -358,7 +360,9 @@ function descartescount(q::Container{T}, tol::T=zero(T)) where {T}
             flag = flag′
         end
     end
+    
     cnt
+
 end
 
 ## ----
@@ -420,7 +424,7 @@ The algorithm has a random step included, which leads to small variations in the
 Examples:
 
 ```jldoctest anewdsc
-julia> using Polynomials; ANewDsc = Polynomials.IsolatingIntervals.ANewDsc
+julia> using RealPolynomialRoots
 
 julia> ps = [-1, 254, -16129, 0, 0, 0, 0, 1] # mignotte polynomial with two nearby roots
 
@@ -503,7 +507,7 @@ julia> x = variable(Polynomial);
 
 julia> p = -1 + 254*x - 16129*x^2 + x^15;
 
-julia> Polynomials.isolating_intervals(p)  # ≈ 0.15 seconds; 
+julia> ANewDsc(coeffs(p))  # ≈ 0.05 seconds; 
 There were 3 isolating intervals found:
 [0.75…, 4.25…]₅₃
 [0.00787401574803149653139…, 0.00787401574803149972047…]₂₁₂
@@ -576,31 +580,39 @@ Descartes' bound, in addition to other algorithmic improvements (not
 all implemented here).
 
 !!! Note
+
     A square free polynomial can be found through `p/gcd(p, p')`,
     though in practice this calculation is numerically unstable.
 
 !!! Note 
-    This implementation is **much** slower than the
-    `Hecke.roots` function provided through `arblib` in `Hecke.jl`,
-    which itself says is not competitive with more specialized
-    implementations, such as provided by the paper authors
+
+    This implementation is **much** slower than the `Hecke.roots`
+    function provided through `arblib` in `Hecke.jl`, which itself
+    says is not competitive with more specialized implementations,
+    such as provided by the paper authors
     (http://anewdsc.mpi-inf.mpg.de/). There are several reasons: The
     `mobius_transform!` function is 𝑶(n²), and could be 𝑶(n⋅log(n))
     with more effort; the polynomial evaluation in `admissiblepoint`
     could, similarly, be made more efficient; despite using tricks
     learned from the `MutableArithmetics.jl` package to reduce
     allocations with the `BigFloat` type, there are still *far* too
-    many allocations; the significant engineering speedups suggested
-    by Kobel, Rouillier, and Sagraloff are not implemented; etc.
+    many allocations as each time the precision is changed new
+    (allocating) values must be created, as the old ones can't be
+    modified in place (using `set_prec!` causes segfaults); the
+    significant engineering speedups suggested by Kobel, Rouillier,
+    and Sagraloff are not implemented; etc.
 
 """
 ANewDsc, refine_interval, refine_roots
 
-function ANewDsc(p::Container{<:Real}; root_bound=root_bound(p), max_depth=96)
+function ANewDsc(p::Container{<:Real}; root_bound=root_bound(p), max_depth=32)
 
     T = BigFloat
     
     n = length(p) - 1
+    iszero(n) && return State(𝐈{T}[],  𝐈{T}[], NTuple{n+1,eltype(p)}(p))
+
+    max_depth *= ceil(Int, log2(n+2))
     
     n′ = sum(divrem(n,2))
     p′ = [i*p[i+1] for i ∈ 1:n]
@@ -611,7 +623,7 @@ function ANewDsc(p::Container{<:Real}; root_bound=root_bound(p), max_depth=96)
     Internal = [(I,1,1)]
     Isol = 𝐈{T}[]
     Unresolved = 𝐈{T}[]
-
+    ctr = [0,0,0]
     while !isempty(Internal)
 
         I, nᴵ, depth = pop!(Internal)
@@ -624,7 +636,7 @@ function ANewDsc(p::Container{<:Real}; root_bound=root_bound(p), max_depth=96)
 
         ## pump the brakes, if needed, otherwise can go on and on in a newtonstep
         ## with non-square input
-        depth >= max_depth && (push!(Unresolved, I); continue)
+        depth >= 10max_depth && (push!(Unresolved, I); continue)
 
         # shrink or divide;
         val, J = newtontest(p, p′, I, nᴵ)
@@ -632,7 +644,7 @@ function ANewDsc(p::Container{<:Real}; root_bound=root_bound(p), max_depth=96)
             push!(Internal, (J,nᴵ+1, depth))
             continue
         end
-        
+
         val, J = boundarytest(p, I, nᴵ)
         if val
             push!(Internal, (J,nᴵ,depth))

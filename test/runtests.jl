@@ -51,7 +51,9 @@ using Test
     @test length(st) == 50
     @test length(st.Unresolved) == 0
 
-    # broken test
+    # These two tests show that polynomials may not have the roots
+    # that they theoretically might expect to have due to round
+    # off.
     # This passes with ^30
     𝐩 = setprecision(256) do
         delta = 1/big(10)^30
@@ -62,17 +64,23 @@ using Test
     @test length(st) == 3
     @test length(st.Unresolved) == 0
     
-    # This fails to disambiguate the roots, though
-    # with ^50
-    𝐩 = setprecision(256) do
-        delta = 1/big(10)^50
-        fromroots(Polynomial,[1.0, 1+delta, 1 + 2delta])
-    end
-    p = coeffs(𝐩)
+    # This shows mathematical expectations may fail due to precision issues
+    delta = 1e-5
+    p = coeffs(fromroots(Polynomial,[1.0, 1+delta, 1 + 2delta]))
     st = ANewDsc(p)
-    @test_broken (length(st) == 3) && (length(st.Unresolved) == 0)
+    @test length(st) == 3 # works
 
-    # test real_roots
+    delta = 1e-8
+    p = coeffs(fromroots(Polynomial,[1.0, 1+delta, 1 + 2delta]))
+    st = ANewDsc(p)
+    @test_broken length(st) == 3 # doesn't to find 3
+
+    delta = 1e-8
+    p = coeffs(fromroots(Polynomial, BigFloat[1.0, 1+delta, 1 + 2delta]))
+    st = ANewDsc(p)
+    @test length(st) == 3 # works
+    
+    ## test real_roots
     rroots = (refine_roots ∘ ANewDsc ∘ coeffs)
     
     𝐱 = variable(Polynomial)
@@ -99,15 +107,15 @@ using Test
 
     for i ∈ (1e2, 1e5, 1e8) # bigger values are just close
         𝐩 = 𝐱 - i
-        rts = rroots(p)
-        @test rts ≈ [i]
+        rts = rroots(𝐩)
+        @test Float64.(rts) ≈ [i]
     end
     
     # d > 1, nreal = 1
     for i ∈ -2000:117:2000
         𝐩 = (𝐱^2+1)*(𝐱-i)
         rts = rroots(𝐩)
-        @test rts ≈ [i]
+        @test Float64.(rts) ≈ [i]
     end
 
     # d = 2

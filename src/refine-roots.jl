@@ -37,7 +37,6 @@ function refine_interval(p, a, b, L=min(53,maximum(precision, (a,b))))
             I = J
             continue
         end
-        
 
         Iₗ, Iᵣ = bisect_interval(p, I, n′, L)
         

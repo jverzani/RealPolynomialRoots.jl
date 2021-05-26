@@ -1,6 +1,3 @@
-
-## ----
-##
 ## lightweight IntervalArithemetic over BigFloat following paper
 ## (https://arxiv.org/pdf/1104.1362.pdf) on root refinement
 ## https://github.com/JuliaIntervals/IntervalArithmetic.jl is the
@@ -40,9 +37,6 @@ function Base.show(io::IO, I::𝐈)
     nothing
 end
 
-
-𝑰(a,b,args...) = error("");#𝐈(a,b)
-
 Base.diff(a::𝐈) = a.hi-a.lo
 midpoint(a::𝐈) = a.lo + (a.hi - a.lo)/2
 Base.sign(a::𝐈) = a.hi < 0 ? -1 : a.lo > 0 ? 1 : 0
@@ -55,10 +49,7 @@ function Base.zero(a::𝐈)
     ball(0,L)
 end
 zero!(a::𝐈) = (zero!(a.lo); zero!(a.hi); nothing)
-    
-
 precision(I::𝐈) = maximum(precision, I)
-
 
 function ball!(𝐱::𝐈, x, ϵ::BigFloat)
     x′ = BigFloat(x, precision=precision(ϵ)) #deepcopy(x)
@@ -104,10 +95,7 @@ function Base.copy!(a::𝐈, b::𝐈)
 end
 
 
-
-
-
-function swap!(a::𝐈, b::𝐈)
+function swap!(a::T, b::T) where {T <: 𝐈}
     swap!(a.lo, b.lo)
     swap!(a.hi, b.hi)
 end
@@ -225,11 +213,6 @@ function LinearAlgebra.rdiv!(a::𝐈, b::𝐈)
     rmul!(a, c)
 end
 
-function swap!(c::T, a::T,b::T) where {T <: 𝐈}
-    swap!(a.lo, b.lo)
-    swap!(a.hi, b.hi)
-end
-
 function abs!(a::𝐈)
     if a.hi < 0
         c = deepcopy(a.lo)
@@ -250,7 +233,6 @@ maybe0(x::𝐈) = x.lo < zero(x.lo) < x.hi
 function maybe0(x::𝐈, L::Int)
     setprecision(L) do
         ϵ = eps(BigFloat)
-#        return x.hi > -ϵ && x.lo < ϵ
         return !(x.hi < -ϵ || x.lo > ϵ)
         x.lo < -ϵ && x.hi > ϵ
     end
