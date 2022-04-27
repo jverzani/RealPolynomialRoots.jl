@@ -1,4 +1,10 @@
-*.jl.*.cov
 *.jl.cov
+*.jl.*.cov
 *.jl.mem
+docs/build
+docs/site
+docs/Manifest.toml
 src/notes.jl
+test/benchmarks.json
+Manifest.toml
+TODO.md
