@@ -423,7 +423,7 @@ The algorithm has a random step included, which leads to small variations in the
 
 Examples:
 
-```jldoctest anewdsc
+```
 julia> using RealPolynomialRoots
 
 julia> ps = [-1, 254, -16129, 0, 0, 0, 0, 1] # mignotte polynomial with two nearby roots
