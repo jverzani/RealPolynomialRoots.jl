@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>RealPolynomialRoots · RealPolynomialRoots</title><script data-outdated-warner src="assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.044/juliamono.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href>RealPolynomialRoots</a></span></div><form class="docs-search" action="search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li class="is-active"><a class="tocitem" href>RealPolynomialRoots</a><ul class="internal"><li><a class="tocitem" href="#Reference"><span>Reference</span></a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>RealPolynomialRoots</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>RealPolynomialRoots</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/jverzani/RealPolynomialRoots.jl/blob/master/docs/src/index.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="RealPolynomialRoots"><a class="docs-heading-anchor" href="#RealPolynomialRoots">RealPolynomialRoots</a><a id="RealPolynomialRoots-1"></a><a class="docs-heading-anchor-permalink" href="#RealPolynomialRoots" title="Permalink"></a></h1><p><a href="https://github.com/jverzani/RealPolynomialRoots.jl/">(source) RealPolynomialRoots</a></p><p>A package to find isolating intervals for the real roots of a square free polynomial.</p><p>Example:</p><pre><code class="language-julia-repl hljs" style="display:block;">julia&gt; using RealPolynomialRoots</code><code class="nohighlight hljs ansi" style="display:block;"></code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; ps = [-1, 254, -16129, 0, 0, 0, 0, 1] # mignotte polynomial with two nearby roots</code><code class="nohighlight hljs ansi" style="display:block;">8-element Vector{Int64}:
+     -1
+    254
+ -16129
+      0
+      0
+      0
+      0
+      1</code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; ANewDsc(ps)</code><code class="nohighlight hljs ansi" style="display:block;">There were 3 isolating intervals found:
+[3.5…, 7.75…]₅₃
+[0.007874015746665…, 0.007874016186975…]₆₂
+[0.007874015316361…, 0.007874015746665…]₆₂</code></pre><pre><code class="language-julia-repl hljs" style="display:block;">julia&gt; ps =[ # from https://discourse.julialang.org/t/root-isolation-of-real-rooted-integer-polynomials/51421
+                             942438915208811912419937422298363203125
+                          164182217245953398816894035758761902846875
+                         4584900574568933770264468813466870772155175
+                        48995332393110515074735075708247882042540865
+                       266674183150777010544241114017741621823207005
+                       852443280934837985352088128423887894438557515
+                      1738546146302892245736990844587487000484756535
+                      2381558158813900978436742173305983349418813145
+                      2262003889258248241081177038309445610985409335
+                      1516025051068561122302699855213604175083575145
+                       720810987764796866354279087485114863858085005
+                       241341213302325116160821160849326697595681275
+                        55563538585119205063994483187179167406616375
+                         8363912237256094118085070946083688310200625
+                          740493466743082745510080711751444519503125
+                           29215606371473169285018060091249259296875];</code><code class="nohighlight hljs ansi" style="display:block;"></code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; ANewDsc(ps)</code><code class="nohighlight hljs ansi" style="display:block;">There were 15 isolating intervals found:
+[-0.01965…, 0.05432…]₂₅₆
+[-0.0957…, -0.01965…]₂₅₆
+[-0.2461…, -0.0957…]₂₅₆
+[-0.3926…, -0.2461…]₂₅₆
+[-0.6875…, -0.3945…]₂₅₆
+[-0.9766…, -0.6875…]₂₅₆
+[-1.266…, -0.9766…]₂₅₆
+[-1.84…, -1.25…]₂₅₆
+[-2.125…, -1.859…]₂₅₆
+[-2.438…, -2.125…]₂₅₆
+[-3.0…, -2.44…]₂₅₆
+[-3.312…, -3.031…]₂₅₆
+[-3.594…, -3.312…]₂₅₆
+[-3.875…, -3.594…]₂₅₆
+[-4.188…, -3.875…]₂₅₆</code></pre><p>The <code>refine_roots</code> method refines the isolating intervals down to diameter <code>1/2^L</code> and then takes the midpoint:</p><pre><code class="language-julia-repl hljs" style="display:block;">julia&gt; ps = [-1, 254, -16129, 0, 0, 0, 0, 1];</code><code class="nohighlight hljs ansi" style="display:block;"></code><br/><code class="language-julia-repl hljs" style="display:block;">julia&gt; (refine_roots ∘ ANewDsc)(ps)</code><code class="nohighlight hljs ansi" style="display:block;">3-element Vector{BigFloat}:
+ 6.939437409621392124433921311255248881683445757704866149604804652860877423048436
+ 0.007874016089132754392589862148210217923361472861828800926166342440908408879362481
+ 0.007874015406930340792452086755670255125636199075586768673945917434230953288095987</code></pre><p>The algorithm used is based on</p><p><em>Computing Real Roots of Real Polynomials ... and now For Real!</em> by Alexander Kobel, Fabrice Rouillier, Michael Sagraloff (<a href="https://arXiv.org/1605.00410">arXiv</a>, <a href="https://doi.org/10.1145/2930889.2930937">DOI</a>).</p><p>More detail on the algorithm is found in</p><p><em>Computing real roots of real polynomials</em> Michael Sagraloff, Kurt Mehlhorn <a href="https://doi.org/10.1016/j.jsc.2015.03.004">DOI</a></p><p>The performance of this implementation could be <strong>significantly</strong> improved upon: polynomials of degree 10,000 or more are tractable with the algorithm, but this implementation gets pretty sluggish on random polynomials of degree 250.</p><h2 id="Reference"><a class="docs-heading-anchor" href="#Reference">Reference</a><a id="Reference-1"></a><a class="docs-heading-anchor-permalink" href="#Reference" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-binding" id="RealPolynomialRoots.ANewDsc" href="#RealPolynomialRoots.ANewDsc"><code>RealPolynomialRoots.ANewDsc</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia hljs">ANewDsc(p; root_bound=(lowerbound(p), upperbound(p)), max_depth=96)
+refine_interval(p, a, b, L)
+refine_roots(st::State)</code></pre><p>A method to find isolating intervals for the real roots of a square-free polynomial specified by the cofficients stored in <code>p</code>.</p><ul><li><code>p</code>: the polynomial coefficients, <code>[a₀, a₁, …, aₙ]</code>, of a <strong>square-free</strong> polynomial.</li><li><code>root_bound</code>: a lower bound and upper bound for the real roots.</li></ul><p>Returns a <code>State</code> instance which has components:</p><ul><li><code>Isol</code> holding the isolating intervals. Iteration over a <code>State</code> object will iterate over <code>Isol</code>.</li><li><code>Unresolved</code> holding any unresolved intervals. The show method alerts the presence of any such intervals.</li></ul><p>The algorithm has a random step included, which leads to small variations in the output.</p><p>Examples:</p><pre><code class="nohighlight hljs">julia&gt; using RealPolynomialRoots
+
+julia&gt; ps = [-1, 254, -16129, 0, 0, 0, 0, 1] # mignotte polynomial with two nearby roots
+8-element Vector{Int64}:
+     -1
+    254
+ -16129
+      0
+      0
+      0
+      0
+      1
+
+julia&gt; st = ANewDsc(ps)
+There were 3 isolating intervals found:
+[3.5…, 7.25…]₅₃
+[0.00787401594698…, 0.00787401779189…]₆₃
+[0.00787401419348…, 0.00787401594698…]₆₃
+
+julia&gt; ps = [3628800, -10628640, 12753576, -8409500, 3416930, -902055, 157773, -18150, 1320, -55, 1]; # πᵢ₌₁¹⁰ (x-i)
+
+julia&gt; st = ANewDsc(ps)
+There were 10 isolating intervals found:
+[9.25…, 10.2…]₅₃
+[8.5…, 9.25…]₅₃
+[7.5…, 8.5…]₅₃
+[6.5…, 7.5…]₅₃
+[5.62…, 6.5…]₅₃
+[4.88…, 5.62…]₅₃
+[3.0…, 4.75…]₅₃
+[2.19…, 3.0…]₅₃
+[1.28…, 2.19…]₅₃
+[-0.5…, 1.31…]₅₃
+
+julia&gt; ps =[ # from https://discourse.julialang.org/t/root-isolation-of-real-rooted-integer-polynomials/51421/1
+                      942438915208811912419937422298363203125
+                   164182217245953398816894035758761902846875
+                  4584900574568933770264468813466870772155175
+                 48995332393110515074735075708247882042540865
+                266674183150777010544241114017741621823207005
+                852443280934837985352088128423887894438557515
+               1738546146302892245736990844587487000484756535
+               2381558158813900978436742173305983349418813145
+               2262003889258248241081177038309445610985409335
+               1516025051068561122302699855213604175083575145
+                720810987764796866354279087485114863858085005
+                241341213302325116160821160849326697595681275
+                 55563538585119205063994483187179167406616375
+                  8363912237256094118085070946083688310200625
+                   740493466743082745510080711751444519503125
+                    29215606371473169285018060091249259296875];
+
+julia&gt; ANewDsc(ps)
+There were 15 isolating intervals found:
+[-0.01617…, 0.0531…]₂₅₆
+[-0.08643…, -0.01617…]₂₅₆
+[-0.2285…, -0.08643…]₂₅₆
+[-0.3711…, -0.2285…]₂₅₆
+[-0.6562…, -0.3672…]₂₅₆
+[-0.9531…, -0.6562…]₂₅₆
+[-1.234…, -0.9531…]₂₅₆
+[-1.84…, -1.25…]₂₅₆
+[-2.125…, -1.812…]₂₅₆
+[-2.438…, -2.125…]₂₅₆
+[-3.0…, -2.44…]₂₅₆
+[-3.281…, -3.031…]₂₅₆
+[-3.562…, -3.281…]₂₅₆
+[-3.875…, -3.562…]₂₅₆
+[-4.188…, -3.875…]₂₅₆</code></pre><p><strong>Refinement</strong></p><p>The <code>refine_interval</code> method can be used to refine an interval to have width smaller than <span>$2^{-L}$</span> where <code>L</code> may be specified, but otherwise comes from the intervals precision.</p><p>Alternatively, a package like <code>Roots</code> could be used; e.g: <code>[find_zero(st, I) for I ∈ st]</code> (where <code>st</code> is a <code>State</code> object returned by <code>ANewDsc</code>). If refinement over <code>Float64</code> values is desired and appropriate given the root separation, then that call can be modified, as with <code>[find_zero(st, Float64.(I)) for I ∈ st]</code>. (This should produce roots with a sign change between <code>nextfloat</code> and <code>prevfloat</code>.)</p><p><strong>Comparisons</strong></p><p>Don&#39;t judge the algorithm by its implementation here. This implementation is not as performant as it could be.</p><p>Comparing to some alternatives, we have that the functionality from Hecke.jl (<code>Hecke._roots</code>) is <strong>much</strong> better. (The last example is 33 ≈ 0.14s/0.0042 times faster)</p><p>However, compared to other alternatives this implementation could be seen as useful:</p><pre><code class="nohighlight hljs">julia&gt; x = variable(Polynomial);
+
+julia&gt; p = -1 + 254*x - 16129*x^2 + x^15;
+
+julia&gt; ANewDsc(coeffs(p))  # ≈ 0.05 seconds;
+There were 3 isolating intervals found:
+[0.75…, 4.25…]₅₃
+[0.00787401574803149653139…, 0.00787401574803149972047…]₂₁₂
+[0.0078740157480314937167…, 0.00787401574803149653139…]₂₁₂
+
+julia&gt; filter(isreal, roots(p)) # much faster, but misses two roots with imaginary part ~ 1e-10
+1-element Array{Complex{Float64},1}:
+ 2.1057742291764914 + 0.0im
+
+julia&gt; filter(isreal, AMRVW.roots(Float64.(coeffs(p)))) # using AMRVW. Similarly misses two roots
+1-element Array{Complex{Float64},1}:
+ 2.1057742291764407 + 0.0im
+
+julia&gt; filter(isreal, AMRVW.roots(BigFloat.(coeffs(p)))) # this works here
+3-element Vector{Complex{BigFloat}}:
+ 0.007874015748031494751793842937491860399146218747427882112208862187156603046408902 + 0.0im
+ 0.007874015748031497374190409031015351762713667398750832139185145345899098824178322 + 0.0im
+    2.105774229176482954331883383107195997983004314462374928263620342390986189650864 + 0.0im
+
+julia&gt; filter(isreal, PolynomialRoots.roots(coeffs(p))) # using PolynomialRoots. Misses 2.105?
+2-element Array{Complex{Float64},1}:
+   0.0078740158234482 + 0.0im
+ 0.007874015672614794 + 0.0im
+
+julia&gt; IntervalRootFinding.roots(x-&gt;p(x), IntervalArithmetic.Interval(0.0, 5.0)) # using IntervalRootFinding, IntervalArithmetic
+8-element Array{Root{IntervalArithmetic.Interval{Float64}},1}:
+ Root([2.10577, 2.10578], :unique)
+ Root([0.00787418, 0.00787422], :unknown)
+ Root([0.00787403, 0.00787409], :unknown)
+[...]
+
+julia&gt; @syms x::real # using SymPy
+
+julia&gt; @time  rts = sympy.real_roots(p(x)); # correctly identifies 3.
+  0.003896 seconds (518 allocations: 13.359 KiB)
+
+julia&gt; sympy.N(rts[2]) # takes a long time! (162s)
+0.00787401574803150</code></pre><p>The algorithm used is a partial implementation of one presented in:</p><p><em>Computing Real Roots of Real Polynomials ... and now For Real!</em> by Alexander Kobel, Fabrice Rouillier, Michael Sagraloff <a href="https://arXiv.org/1605.00410">arXiv</a>; <a href="https://doi.org/10.1145/2930889.2930937">DOI:</a>.</p><p>and</p><p><em>Computing real roots of real polynomials</em> Michael Sagraloff, Kurt Mehlhorn <a href="https://doi.org/10.1016/j.jsc.2015.03.004">DOI:</a></p><p>The algorithm relies on Descartes&#39; rule of signs, which gives a bound on the number of positive real roots of a polynomial, <code>p(x)</code>. By considering the polynomial <code>p((ax+b)/(x+1))</code> (a mapping of <code>[a,b]</code> to <code>[0,∞)</code> a bound on the number of roots in <code>[a,b]</code> can be found. A simple bisection algorithm for a square-free polynomial would be to start with an interval large enough to contain all the real roots, then subdivide at the midpoint throwing out sub intervals which are found to have no root; saving intervals known to have 1 root, and repeating the subdivision otherwise. Issues with this are the need for many subdivisions when clusters of roots are present and the numeric issues that arise in computing the mapping.</p><p>The work of Sagaraloff, Melhorn, Kobel, and Rouillier improves this by introducing a Newton test and boundary test for rapidly decreasing the size of an interval when possible, and the ability to use finite precision arithmetic, instead of exact arithmetic, to compute the Descartes&#39; bound, in addition to other algorithmic improvements (not all implemented here).</p><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>A square free polynomial can be found through <code>p/gcd(p, p&#39;)</code>, though in practice this calculation is numerically unstable.</p></div></div><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>This implementation is <strong>much</strong> slower than the <code>Hecke.roots</code> function provided through <code>arblib</code> in <code>Hecke.jl</code>, which itself says is not competitive with more specialized implementations, such as provided by the paper authors (http://anewdsc.mpi-inf.mpg.de/). There are several reasons: The <code>mobius_transform!</code> function is <code>𝑶(n²)</code>, and could be <code>𝑶(n⋅log(n))</code> with more effort; the polynomial evaluation in <code>admissiblepoint</code> could, similarly, be made more efficient; despite using tricks learned from the <code>MutableArithmetics.jl</code> package to reduce allocations with the <code>BigFloat</code> type, there are still <em>far</em> too many allocations as each time the precision is changed new (allocating) values must be created, as the old ones can&#39;t be modified in place (using <code>set_prec!</code> causes segfaults); the significant engineering speedups suggested by Kobel, Rouillier, and Sagraloff are not implemented; etc.</p></div></div></div><a class="docs-sourcelink" target="_blank" href="https://github.com/jverzani/RealPolynomialRoots.jl/blob/49dc202507acb2217b9c26a286b2626445101043/src/anewdsc.jl#L405-L622">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="RealPolynomialRoots.refine_interval" href="#RealPolynomialRoots.refine_interval"><code>RealPolynomialRoots.refine_interval</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia hljs">ANewDsc(p; root_bound=(lowerbound(p), upperbound(p)), max_depth=96)
+refine_interval(p, a, b, L)
+refine_roots(st::State)</code></pre><p>A method to find isolating intervals for the real roots of a square-free polynomial specified by the cofficients stored in <code>p</code>.</p><ul><li><code>p</code>: the polynomial coefficients, <code>[a₀, a₁, …, aₙ]</code>, of a <strong>square-free</strong> polynomial.</li><li><code>root_bound</code>: a lower bound and upper bound for the real roots.</li></ul><p>Returns a <code>State</code> instance which has components:</p><ul><li><code>Isol</code> holding the isolating intervals. Iteration over a <code>State</code> object will iterate over <code>Isol</code>.</li><li><code>Unresolved</code> holding any unresolved intervals. The show method alerts the presence of any such intervals.</li></ul><p>The algorithm has a random step included, which leads to small variations in the output.</p><p>Examples:</p><pre><code class="nohighlight hljs">julia&gt; using RealPolynomialRoots
+
+julia&gt; ps = [-1, 254, -16129, 0, 0, 0, 0, 1] # mignotte polynomial with two nearby roots
+8-element Vector{Int64}:
+     -1
+    254
+ -16129
+      0
+      0
+      0
+      0
+      1
+
+julia&gt; st = ANewDsc(ps)
+There were 3 isolating intervals found:
+[3.5…, 7.25…]₅₃
+[0.00787401594698…, 0.00787401779189…]₆₃
+[0.00787401419348…, 0.00787401594698…]₆₃
+
+julia&gt; ps = [3628800, -10628640, 12753576, -8409500, 3416930, -902055, 157773, -18150, 1320, -55, 1]; # πᵢ₌₁¹⁰ (x-i)
+
+julia&gt; st = ANewDsc(ps)
+There were 10 isolating intervals found:
+[9.25…, 10.2…]₅₃
+[8.5…, 9.25…]₅₃
+[7.5…, 8.5…]₅₃
+[6.5…, 7.5…]₅₃
+[5.62…, 6.5…]₅₃
+[4.88…, 5.62…]₅₃
+[3.0…, 4.75…]₅₃
+[2.19…, 3.0…]₅₃
+[1.28…, 2.19…]₅₃
+[-0.5…, 1.31…]₅₃
+
+julia&gt; ps =[ # from https://discourse.julialang.org/t/root-isolation-of-real-rooted-integer-polynomials/51421/1
+                      942438915208811912419937422298363203125
+                   164182217245953398816894035758761902846875
+                  4584900574568933770264468813466870772155175
+                 48995332393110515074735075708247882042540865
+                266674183150777010544241114017741621823207005
+                852443280934837985352088128423887894438557515
+               1738546146302892245736990844587487000484756535
+               2381558158813900978436742173305983349418813145
+               2262003889258248241081177038309445610985409335
+               1516025051068561122302699855213604175083575145
+                720810987764796866354279087485114863858085005
+                241341213302325116160821160849326697595681275
+                 55563538585119205063994483187179167406616375
+                  8363912237256094118085070946083688310200625
+                   740493466743082745510080711751444519503125
+                    29215606371473169285018060091249259296875];
+
+julia&gt; ANewDsc(ps)
+There were 15 isolating intervals found:
+[-0.01617…, 0.0531…]₂₅₆
+[-0.08643…, -0.01617…]₂₅₆
+[-0.2285…, -0.08643…]₂₅₆
+[-0.3711…, -0.2285…]₂₅₆
+[-0.6562…, -0.3672…]₂₅₆
+[-0.9531…, -0.6562…]₂₅₆
+[-1.234…, -0.9531…]₂₅₆
+[-1.84…, -1.25…]₂₅₆
+[-2.125…, -1.812…]₂₅₆
+[-2.438…, -2.125…]₂₅₆
+[-3.0…, -2.44…]₂₅₆
+[-3.281…, -3.031…]₂₅₆
+[-3.562…, -3.281…]₂₅₆
+[-3.875…, -3.562…]₂₅₆
+[-4.188…, -3.875…]₂₅₆</code></pre><p><strong>Refinement</strong></p><p>The <code>refine_interval</code> method can be used to refine an interval to have width smaller than <span>$2^{-L}$</span> where <code>L</code> may be specified, but otherwise comes from the intervals precision.</p><p>Alternatively, a package like <code>Roots</code> could be used; e.g: <code>[find_zero(st, I) for I ∈ st]</code> (where <code>st</code> is a <code>State</code> object returned by <code>ANewDsc</code>). If refinement over <code>Float64</code> values is desired and appropriate given the root separation, then that call can be modified, as with <code>[find_zero(st, Float64.(I)) for I ∈ st]</code>. (This should produce roots with a sign change between <code>nextfloat</code> and <code>prevfloat</code>.)</p><p><strong>Comparisons</strong></p><p>Don&#39;t judge the algorithm by its implementation here. This implementation is not as performant as it could be.</p><p>Comparing to some alternatives, we have that the functionality from Hecke.jl (<code>Hecke._roots</code>) is <strong>much</strong> better. (The last example is 33 ≈ 0.14s/0.0042 times faster)</p><p>However, compared to other alternatives this implementation could be seen as useful:</p><pre><code class="nohighlight hljs">julia&gt; x = variable(Polynomial);
+
+julia&gt; p = -1 + 254*x - 16129*x^2 + x^15;
+
+julia&gt; ANewDsc(coeffs(p))  # ≈ 0.05 seconds;
+There were 3 isolating intervals found:
+[0.75…, 4.25…]₅₃
+[0.00787401574803149653139…, 0.00787401574803149972047…]₂₁₂
+[0.0078740157480314937167…, 0.00787401574803149653139…]₂₁₂
+
+julia&gt; filter(isreal, roots(p)) # much faster, but misses two roots with imaginary part ~ 1e-10
+1-element Array{Complex{Float64},1}:
+ 2.1057742291764914 + 0.0im
+
+julia&gt; filter(isreal, AMRVW.roots(Float64.(coeffs(p)))) # using AMRVW. Similarly misses two roots
+1-element Array{Complex{Float64},1}:
+ 2.1057742291764407 + 0.0im
+
+julia&gt; filter(isreal, AMRVW.roots(BigFloat.(coeffs(p)))) # this works here
+3-element Vector{Complex{BigFloat}}:
+ 0.007874015748031494751793842937491860399146218747427882112208862187156603046408902 + 0.0im
+ 0.007874015748031497374190409031015351762713667398750832139185145345899098824178322 + 0.0im
+    2.105774229176482954331883383107195997983004314462374928263620342390986189650864 + 0.0im
+
+julia&gt; filter(isreal, PolynomialRoots.roots(coeffs(p))) # using PolynomialRoots. Misses 2.105?
+2-element Array{Complex{Float64},1}:
+   0.0078740158234482 + 0.0im
+ 0.007874015672614794 + 0.0im
+
+julia&gt; IntervalRootFinding.roots(x-&gt;p(x), IntervalArithmetic.Interval(0.0, 5.0)) # using IntervalRootFinding, IntervalArithmetic
+8-element Array{Root{IntervalArithmetic.Interval{Float64}},1}:
+ Root([2.10577, 2.10578], :unique)
+ Root([0.00787418, 0.00787422], :unknown)
+ Root([0.00787403, 0.00787409], :unknown)
+[...]
+
+julia&gt; @syms x::real # using SymPy
+
+julia&gt; @time  rts = sympy.real_roots(p(x)); # correctly identifies 3.
+  0.003896 seconds (518 allocations: 13.359 KiB)
+
+julia&gt; sympy.N(rts[2]) # takes a long time! (162s)
+0.00787401574803150</code></pre><p>The algorithm used is a partial implementation of one presented in:</p><p><em>Computing Real Roots of Real Polynomials ... and now For Real!</em> by Alexander Kobel, Fabrice Rouillier, Michael Sagraloff <a href="https://arXiv.org/1605.00410">arXiv</a>; <a href="https://doi.org/10.1145/2930889.2930937">DOI:</a>.</p><p>and</p><p><em>Computing real roots of real polynomials</em> Michael Sagraloff, Kurt Mehlhorn <a href="https://doi.org/10.1016/j.jsc.2015.03.004">DOI:</a></p><p>The algorithm relies on Descartes&#39; rule of signs, which gives a bound on the number of positive real roots of a polynomial, <code>p(x)</code>. By considering the polynomial <code>p((ax+b)/(x+1))</code> (a mapping of <code>[a,b]</code> to <code>[0,∞)</code> a bound on the number of roots in <code>[a,b]</code> can be found. A simple bisection algorithm for a square-free polynomial would be to start with an interval large enough to contain all the real roots, then subdivide at the midpoint throwing out sub intervals which are found to have no root; saving intervals known to have 1 root, and repeating the subdivision otherwise. Issues with this are the need for many subdivisions when clusters of roots are present and the numeric issues that arise in computing the mapping.</p><p>The work of Sagaraloff, Melhorn, Kobel, and Rouillier improves this by introducing a Newton test and boundary test for rapidly decreasing the size of an interval when possible, and the ability to use finite precision arithmetic, instead of exact arithmetic, to compute the Descartes&#39; bound, in addition to other algorithmic improvements (not all implemented here).</p><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>A square free polynomial can be found through <code>p/gcd(p, p&#39;)</code>, though in practice this calculation is numerically unstable.</p></div></div><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>This implementation is <strong>much</strong> slower than the <code>Hecke.roots</code> function provided through <code>arblib</code> in <code>Hecke.jl</code>, which itself says is not competitive with more specialized implementations, such as provided by the paper authors (http://anewdsc.mpi-inf.mpg.de/). There are several reasons: The <code>mobius_transform!</code> function is <code>𝑶(n²)</code>, and could be <code>𝑶(n⋅log(n))</code> with more effort; the polynomial evaluation in <code>admissiblepoint</code> could, similarly, be made more efficient; despite using tricks learned from the <code>MutableArithmetics.jl</code> package to reduce allocations with the <code>BigFloat</code> type, there are still <em>far</em> too many allocations as each time the precision is changed new (allocating) values must be created, as the old ones can&#39;t be modified in place (using <code>set_prec!</code> causes segfaults); the significant engineering speedups suggested by Kobel, Rouillier, and Sagraloff are not implemented; etc.</p></div></div></div><a class="docs-sourcelink" target="_blank" href="https://github.com/jverzani/RealPolynomialRoots.jl/blob/49dc202507acb2217b9c26a286b2626445101043/src/anewdsc.jl#L405-L622">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="RealPolynomialRoots.refine_roots" href="#RealPolynomialRoots.refine_roots"><code>RealPolynomialRoots.refine_roots</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia hljs">ANewDsc(p; root_bound=(lowerbound(p), upperbound(p)), max_depth=96)
+refine_interval(p, a, b, L)
+refine_roots(st::State)</code></pre><p>A method to find isolating intervals for the real roots of a square-free polynomial specified by the cofficients stored in <code>p</code>.</p><ul><li><code>p</code>: the polynomial coefficients, <code>[a₀, a₁, …, aₙ]</code>, of a <strong>square-free</strong> polynomial.</li><li><code>root_bound</code>: a lower bound and upper bound for the real roots.</li></ul><p>Returns a <code>State</code> instance which has components:</p><ul><li><code>Isol</code> holding the isolating intervals. Iteration over a <code>State</code> object will iterate over <code>Isol</code>.</li><li><code>Unresolved</code> holding any unresolved intervals. The show method alerts the presence of any such intervals.</li></ul><p>The algorithm has a random step included, which leads to small variations in the output.</p><p>Examples:</p><pre><code class="nohighlight hljs">julia&gt; using RealPolynomialRoots
+
+julia&gt; ps = [-1, 254, -16129, 0, 0, 0, 0, 1] # mignotte polynomial with two nearby roots
+8-element Vector{Int64}:
+     -1
+    254
+ -16129
+      0
+      0
+      0
+      0
+      1
+
+julia&gt; st = ANewDsc(ps)
+There were 3 isolating intervals found:
+[3.5…, 7.25…]₅₃
+[0.00787401594698…, 0.00787401779189…]₆₃
+[0.00787401419348…, 0.00787401594698…]₆₃
+
+julia&gt; ps = [3628800, -10628640, 12753576, -8409500, 3416930, -902055, 157773, -18150, 1320, -55, 1]; # πᵢ₌₁¹⁰ (x-i)
+
+julia&gt; st = ANewDsc(ps)
+There were 10 isolating intervals found:
+[9.25…, 10.2…]₅₃
+[8.5…, 9.25…]₅₃
+[7.5…, 8.5…]₅₃
+[6.5…, 7.5…]₅₃
+[5.62…, 6.5…]₅₃
+[4.88…, 5.62…]₅₃
+[3.0…, 4.75…]₅₃
+[2.19…, 3.0…]₅₃
+[1.28…, 2.19…]₅₃
+[-0.5…, 1.31…]₅₃
+
+julia&gt; ps =[ # from https://discourse.julialang.org/t/root-isolation-of-real-rooted-integer-polynomials/51421/1
+                      942438915208811912419937422298363203125
+                   164182217245953398816894035758761902846875
+                  4584900574568933770264468813466870772155175
+                 48995332393110515074735075708247882042540865
+                266674183150777010544241114017741621823207005
+                852443280934837985352088128423887894438557515
+               1738546146302892245736990844587487000484756535
+               2381558158813900978436742173305983349418813145
+               2262003889258248241081177038309445610985409335
+               1516025051068561122302699855213604175083575145
+                720810987764796866354279087485114863858085005
+                241341213302325116160821160849326697595681275
+                 55563538585119205063994483187179167406616375
+                  8363912237256094118085070946083688310200625
+                   740493466743082745510080711751444519503125
+                    29215606371473169285018060091249259296875];
+
+julia&gt; ANewDsc(ps)
+There were 15 isolating intervals found:
+[-0.01617…, 0.0531…]₂₅₆
+[-0.08643…, -0.01617…]₂₅₆
+[-0.2285…, -0.08643…]₂₅₆
+[-0.3711…, -0.2285…]₂₅₆
+[-0.6562…, -0.3672…]₂₅₆
+[-0.9531…, -0.6562…]₂₅₆
+[-1.234…, -0.9531…]₂₅₆
+[-1.84…, -1.25…]₂₅₆
+[-2.125…, -1.812…]₂₅₆
+[-2.438…, -2.125…]₂₅₆
+[-3.0…, -2.44…]₂₅₆
+[-3.281…, -3.031…]₂₅₆
+[-3.562…, -3.281…]₂₅₆
+[-3.875…, -3.562…]₂₅₆
+[-4.188…, -3.875…]₂₅₆</code></pre><p><strong>Refinement</strong></p><p>The <code>refine_interval</code> method can be used to refine an interval to have width smaller than <span>$2^{-L}$</span> where <code>L</code> may be specified, but otherwise comes from the intervals precision.</p><p>Alternatively, a package like <code>Roots</code> could be used; e.g: <code>[find_zero(st, I) for I ∈ st]</code> (where <code>st</code> is a <code>State</code> object returned by <code>ANewDsc</code>). If refinement over <code>Float64</code> values is desired and appropriate given the root separation, then that call can be modified, as with <code>[find_zero(st, Float64.(I)) for I ∈ st]</code>. (This should produce roots with a sign change between <code>nextfloat</code> and <code>prevfloat</code>.)</p><p><strong>Comparisons</strong></p><p>Don&#39;t judge the algorithm by its implementation here. This implementation is not as performant as it could be.</p><p>Comparing to some alternatives, we have that the functionality from Hecke.jl (<code>Hecke._roots</code>) is <strong>much</strong> better. (The last example is 33 ≈ 0.14s/0.0042 times faster)</p><p>However, compared to other alternatives this implementation could be seen as useful:</p><pre><code class="nohighlight hljs">julia&gt; x = variable(Polynomial);
+
+julia&gt; p = -1 + 254*x - 16129*x^2 + x^15;
+
+julia&gt; ANewDsc(coeffs(p))  # ≈ 0.05 seconds;
+There were 3 isolating intervals found:
+[0.75…, 4.25…]₅₃
+[0.00787401574803149653139…, 0.00787401574803149972047…]₂₁₂
+[0.0078740157480314937167…, 0.00787401574803149653139…]₂₁₂
+
+julia&gt; filter(isreal, roots(p)) # much faster, but misses two roots with imaginary part ~ 1e-10
+1-element Array{Complex{Float64},1}:
+ 2.1057742291764914 + 0.0im
+
+julia&gt; filter(isreal, AMRVW.roots(Float64.(coeffs(p)))) # using AMRVW. Similarly misses two roots
+1-element Array{Complex{Float64},1}:
+ 2.1057742291764407 + 0.0im
+
+julia&gt; filter(isreal, AMRVW.roots(BigFloat.(coeffs(p)))) # this works here
+3-element Vector{Complex{BigFloat}}:
+ 0.007874015748031494751793842937491860399146218747427882112208862187156603046408902 + 0.0im
+ 0.007874015748031497374190409031015351762713667398750832139185145345899098824178322 + 0.0im
+    2.105774229176482954331883383107195997983004314462374928263620342390986189650864 + 0.0im
+
+julia&gt; filter(isreal, PolynomialRoots.roots(coeffs(p))) # using PolynomialRoots. Misses 2.105?
+2-element Array{Complex{Float64},1}:
+   0.0078740158234482 + 0.0im
+ 0.007874015672614794 + 0.0im
+
+julia&gt; IntervalRootFinding.roots(x-&gt;p(x), IntervalArithmetic.Interval(0.0, 5.0)) # using IntervalRootFinding, IntervalArithmetic
+8-element Array{Root{IntervalArithmetic.Interval{Float64}},1}:
+ Root([2.10577, 2.10578], :unique)
+ Root([0.00787418, 0.00787422], :unknown)
+ Root([0.00787403, 0.00787409], :unknown)
+[...]
+
+julia&gt; @syms x::real # using SymPy
+
+julia&gt; @time  rts = sympy.real_roots(p(x)); # correctly identifies 3.
+  0.003896 seconds (518 allocations: 13.359 KiB)
+
+julia&gt; sympy.N(rts[2]) # takes a long time! (162s)
+0.00787401574803150</code></pre><p>The algorithm used is a partial implementation of one presented in:</p><p><em>Computing Real Roots of Real Polynomials ... and now For Real!</em> by Alexander Kobel, Fabrice Rouillier, Michael Sagraloff <a href="https://arXiv.org/1605.00410">arXiv</a>; <a href="https://doi.org/10.1145/2930889.2930937">DOI:</a>.</p><p>and</p><p><em>Computing real roots of real polynomials</em> Michael Sagraloff, Kurt Mehlhorn <a href="https://doi.org/10.1016/j.jsc.2015.03.004">DOI:</a></p><p>The algorithm relies on Descartes&#39; rule of signs, which gives a bound on the number of positive real roots of a polynomial, <code>p(x)</code>. By considering the polynomial <code>p((ax+b)/(x+1))</code> (a mapping of <code>[a,b]</code> to <code>[0,∞)</code> a bound on the number of roots in <code>[a,b]</code> can be found. A simple bisection algorithm for a square-free polynomial would be to start with an interval large enough to contain all the real roots, then subdivide at the midpoint throwing out sub intervals which are found to have no root; saving intervals known to have 1 root, and repeating the subdivision otherwise. Issues with this are the need for many subdivisions when clusters of roots are present and the numeric issues that arise in computing the mapping.</p><p>The work of Sagaraloff, Melhorn, Kobel, and Rouillier improves this by introducing a Newton test and boundary test for rapidly decreasing the size of an interval when possible, and the ability to use finite precision arithmetic, instead of exact arithmetic, to compute the Descartes&#39; bound, in addition to other algorithmic improvements (not all implemented here).</p><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>A square free polynomial can be found through <code>p/gcd(p, p&#39;)</code>, though in practice this calculation is numerically unstable.</p></div></div><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>This implementation is <strong>much</strong> slower than the <code>Hecke.roots</code> function provided through <code>arblib</code> in <code>Hecke.jl</code>, which itself says is not competitive with more specialized implementations, such as provided by the paper authors (http://anewdsc.mpi-inf.mpg.de/). There are several reasons: The <code>mobius_transform!</code> function is <code>𝑶(n²)</code>, and could be <code>𝑶(n⋅log(n))</code> with more effort; the polynomial evaluation in <code>admissiblepoint</code> could, similarly, be made more efficient; despite using tricks learned from the <code>MutableArithmetics.jl</code> package to reduce allocations with the <code>BigFloat</code> type, there are still <em>far</em> too many allocations as each time the precision is changed new (allocating) values must be created, as the old ones can&#39;t be modified in place (using <code>set_prec!</code> causes segfaults); the significant engineering speedups suggested by Kobel, Rouillier, and Sagraloff are not implemented; etc.</p></div></div></div><a class="docs-sourcelink" target="_blank" href="https://github.com/jverzani/RealPolynomialRoots.jl/blob/49dc202507acb2217b9c26a286b2626445101043/src/anewdsc.jl#L405-L622">source</a></section></article></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.16 on <span class="colophon-date" title="Wednesday 27 April 2022 17:49">Wednesday 27 April 2022</span>. Using Julia version 1.7.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
