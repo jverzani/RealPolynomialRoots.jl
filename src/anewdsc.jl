@@ -35,7 +35,7 @@ function admissiblepoint(p, m, ϵ, n, L′ = 53)
         (𝐯ᵢ.lo > δ || 𝐯ᵢ.hi < -δ) && return ξ
         L = 2L
     end
-            
+
 end
 
 
@@ -65,7 +65,7 @@ function zerotest(p, I)
     n = length(p) - 1
     n′ = sum(divrem(n,2))
 
-    L′′ = max(24, L′, max(1, -min(ta-1, tb-1) + 2(n+1) + 1)) 
+    L′′ = max(24, L′, max(1, -min(ta-1, tb-1) + 2(n+1) + 1))
     L = ceil(Int, n + τ(p) + n * Mlog(a) + n * Mlog(b) + L′′)
 
     m = setprecision(() -> a + (b-a)/2, L)
@@ -81,7 +81,7 @@ function zerotest(p, I)
     iszero(bndb) && return true
 
     return false
-    
+
 end
 
 ## test if the interval 𝑰 = [a,b] has exactly 1 root in it
@@ -101,12 +101,12 @@ function onetest(p, I)
 
     ta, tb,t = tₐ(a,L′), tₐ(b,L′),tₐ(mstar,L′)
     L′′ = max(24, L′, max(1, -min(ta-1,tb-1, t-1)) + 4(n+2))
-    L = ceil(Int, n + τ(p) + n * Mlog(a) + n * Mlog(b) + L′′)    
+    L = ceil(Int, n + τ(p) + n * Mlog(a) + n * Mlog(b) + L′′)
 
     ϵ = epsᴸ(L)
     𝐚,𝐦,𝐛 = ball.((a ,mstar, b), ϵ)
     𝐪 = ball.(deepcopy.(p), ϵ)
-    
+
     bnda = descartesbound!(𝐪, 𝐚, 𝐦, L)
 
     ball!.(𝐪, p, ϵ)
@@ -154,7 +154,7 @@ function newtontest(p, p′, I, nᴵ)
             ξⱼ = admissiblepoint(p, uⱼ, ϵ * w, n′, L)
 
             𝐩ᵢ, 𝐩ⱼ  = evalpolyᴸ(ξᵢ, p, L),  evalpolyᴸ(ξⱼ, p, L)
-            𝐩′ᵢ,𝐩′ⱼ = evalpolyᴸ(ξᵢ, p′, L), evalpolyᴸ(ξⱼ, p′, L)            
+            𝐩′ᵢ,𝐩′ⱼ = evalpolyᴸ(ξᵢ, p′, L), evalpolyᴸ(ξⱼ, p′, L)
 
             L′ = max(L, maximum(precision, (ξᵢ, ξⱼ)))
 
@@ -163,7 +163,7 @@ function newtontest(p, p′, I, nᴵ)
             𝐯ᵢ, 𝐯ⱼ =  𝐩ᵢ, 𝐩ⱼ
 
             pᵢ, pⱼ = maxabs(𝐩ᵢ), maxabs(𝐩ⱼ) # store, used to compute new L
-            
+
             if (min(minabs(𝐯ᵢ), minabs(𝐯ⱼ)) > w) || (4n*maxabs(𝚫) < w)  # (25)
                 # discard_too_big_difference_too_small
                 discard_ij = true # stop checking this pair
@@ -171,53 +171,53 @@ function newtontest(p, p′, I, nᴵ)
             elseif (max(maxabs(𝐯ᵢ), maxabs(𝐯ⱼ)) < 2w) && (8n*minabs(𝚫) > w) # (26)
 
                 discard_ij = true # stop checking this pair
-                
+
                 # now set L to be big enough and estimate λ
                 # L = ....²¹ (leaves diff between L an dactual < 1/(32N)
-                
+
                 L = max(24, ceil(Int, log2(n) + log2(N) +
                           Mlog(1/pᵢ) + Mlog(1/pⱼ) + max(0, -log2(w))))
 
                 𝐩ᵢ,  𝐩ⱼ  = evalpolyᴸ(ξᵢ, p, L),  evalpolyᴸ(ξⱼ, p, L)
                 𝐩′ᵢ, 𝐩′ⱼ = evalpolyᴸ(ξᵢ, p′, L), evalpolyᴸ(ξⱼ, p′, L)
 
-                
+
                 rdiv!(𝐩ᵢ,𝐩′ᵢ); rdiv!(𝐩ⱼ,𝐩′ⱼ)
                 𝐯ᵢ,𝐯ⱼ = 𝐩ᵢ,𝐩ⱼ
-                
+
                 λ = 𝐯ᵢ
                 rdiv!(λ, 𝐯ᵢ - 𝐯ⱼ)
                 rmul!(λ, ξⱼ - ξᵢ)
                 radd!(λ, ξᵢ)
 
-                
+
                 if λ.hi < a || λ.lo > b
                     continue
                 elseif isinf(λ) || isnan(λ)
                     continue
                 else
-                        
+
                     lᵢⱼ = setprecision(() ->floor(Int, (midpoint(λ) - a)/w * 4N), L)
                     aᵢⱼ = setprecision(() -> a + (lᵢⱼ - 1)  * w/(4N), L)
                     bᵢⱼ = setprecision(() -> a + (lᵢⱼ + 2) * w/(4N), L)
-                    
+
                     aᵢⱼᵅ = admissiblepoint(p, aᵢⱼ, ϵ *w/N, n′, L)
                     bᵢⱼᵅ = admissiblepoint(p, bᵢⱼ, ϵ *w/N, n′, L)
 
                     lᵢⱼ - 1 <= 0  && (aᵢⱼᵅ = Big(a, precision=L))
                     lᵢⱼ + 2 >= 4N && (bᵢⱼᵅ = Big(b, precision=L))
-                    
+
                     aᵢⱼᵅ, bᵢⱼᵅ = aᵢⱼᵅ < bᵢⱼᵅ  ? (aᵢⱼᵅ, bᵢⱼᵅ) : (bᵢⱼᵅ, aᵢⱼᵅ)
 
                     b-a < bᵢⱼᵅ - aᵢⱼᵅ && continue
-                    
+
                     bnda = zerotest(p, (a,  aᵢⱼᵅ ))
                     bndb = zerotest(p, (bᵢⱼᵅ, b))
 
                     if  bnda && bndb
                         return true, 𝐈(aᵢⱼᵅ,  bᵢⱼᵅ)
                     end
-                    
+
                 end
             elseif double_cnt > 4
                 # abandon and use  bisection
@@ -242,7 +242,7 @@ function boundarytest(p, I, nᴵ)
     a, b = I
     nᴵ = min(5, nᴵ)
     N = 2^(2^nᴵ)
-    
+
     n = length(p) - 1
     n′ = sum(divrem(n,2))
     ϵ = 1/2.0^(2 + ceil(Int, log(n)))
@@ -273,7 +273,7 @@ end
 function signtest(p, I)
     a,b = I
     L = maximum(precision, (a,b))
-    
+
     Σ = ball(0, L)
     𝐚 = evalpolyᴸ!(Σ, a, p, L)
     sa = 𝐚.hi < 0 ? -1 : 𝐚.lo > 0 ? 1 : return nothing
@@ -281,7 +281,7 @@ function signtest(p, I)
     sb = 𝐛.hi < 0 ? -1 : 𝐛.lo > 0 ? 1 : return nothing
 
     sa * sb < 0
-    
+
 end
 
 # split interval at an admissible point
@@ -310,22 +310,22 @@ function upperbound(p, δ = 1/2)
     n = length(p) - 1
     n > 0 || return δ
     L = 2 + n + ceil(Int, τ(p)) #+ 53
-    
+
     setprecision(L) do
         descartescount(p) == 0 && return zero(T) + δ
         q, d = p./p[end], n
-        
+
         d == 0 && return δ
         d == 1 && return max(0, -q[1]) + δ
 
         a1 = abs(q[d])
         B = maximum([abs(q[i]) for i in 1:(d-1)])
-        
+
         a,b,c = 1, -(1+a1), a1-B
         out = (-b + sqrt(b^2 - 4a*c))/2
         out + δ
     end
-    
+
 end
 
 function lowerbound(p)
@@ -360,7 +360,7 @@ function descartescount(q::Container{T}, tol::T=zero(T)) where {T}
             flag = flag′
         end
     end
-    
+
     cnt
 
 end
@@ -393,7 +393,7 @@ function Base.show(io::IO, st::State)
     msg = n == 0 ? "No isolating intervals found." :
         n == 1 ?  "There was 1 isolating interval found:" :
         "There were $n isolating intervals found:"
-    
+
     println(io, msg)
     n > 0 && println.(Ref(io), st.Isol)
 
@@ -423,31 +423,40 @@ The algorithm has a random step included, which leads to small variations in the
 
 Examples:
 
-```jldoctest anewdsc
+```
 julia> using RealPolynomialRoots
 
 julia> ps = [-1, 254, -16129, 0, 0, 0, 0, 1] # mignotte polynomial with two nearby roots
+8-element Vector{Int64}:
+     -1
+    254
+ -16129
+      0
+      0
+      0
+      0
+      1
 
 julia> st = ANewDsc(ps)
 There were 3 isolating intervals found:
-[4.0…, 7.0…]₅₃
-[0.00787401571051…, 0.00787401669368…]₆₄
-[0.00787401494608…, 0.00787401571051…]₆₄
+[3.5…, 7.25…]₅₃
+[0.00787401594698…, 0.00787401779189…]₆₃
+[0.00787401419348…, 0.00787401594698…]₆₃
 
 julia> ps = [3628800, -10628640, 12753576, -8409500, 3416930, -902055, 157773, -18150, 1320, -55, 1]; # πᵢ₌₁¹⁰ (x-i)
 
 julia> st = ANewDsc(ps)
 There were 10 isolating intervals found:
-[9.0…, 10.5…]₅₃
-[8.25…, 9.25…]₅₃
-[7.62…, 8.25…]₅₃
-[6.25…, 7.75…]₅₃
-[5.5…, 6.38…]₅₃
-[4.25…, 5.75…]₅₃
-[3.44…, 4.38…]₅₃
-[2.38…, 3.5…]₅₃
-[1.5…, 2.38…]₅₃
-[-0.0…, 1.5…]₅₃
+[9.25…, 10.2…]₅₃
+[8.5…, 9.25…]₅₃
+[7.5…, 8.5…]₅₃
+[6.5…, 7.5…]₅₃
+[5.62…, 6.5…]₅₃
+[4.88…, 5.62…]₅₃
+[3.0…, 4.75…]₅₃
+[2.19…, 3.0…]₅₃
+[1.28…, 2.19…]₅₃
+[-0.5…, 1.31…]₅₃
 
 julia> ps =[ # from https://discourse.julialang.org/t/root-isolation-of-real-rooted-integer-polynomials/51421/1
                       942438915208811912419937422298363203125
@@ -469,11 +478,21 @@ julia> ps =[ # from https://discourse.julialang.org/t/root-isolation-of-real-roo
 
 julia> ANewDsc(ps)
 There were 15 isolating intervals found:
-[-0.062195…, 0.0…]₅₁₂
-[-0.1421…, -0.06226…]₅₁₂
-[-0.2529…, -0.1426…]₅₁₂
-[-0.5078…, -0.2539…]₅₁₂
-[...]
+[-0.01617…, 0.0531…]₂₅₆
+[-0.08643…, -0.01617…]₂₅₆
+[-0.2285…, -0.08643…]₂₅₆
+[-0.3711…, -0.2285…]₂₅₆
+[-0.6562…, -0.3672…]₂₅₆
+[-0.9531…, -0.6562…]₂₅₆
+[-1.234…, -0.9531…]₂₅₆
+[-1.84…, -1.25…]₂₅₆
+[-2.125…, -1.812…]₂₅₆
+[-2.438…, -2.125…]₂₅₆
+[-3.0…, -2.44…]₂₅₆
+[-3.281…, -3.031…]₂₅₆
+[-3.562…, -3.281…]₂₅₆
+[-3.875…, -3.562…]₂₅₆
+[-4.188…, -3.875…]₂₅₆
 ```
 
 ## Refinement
@@ -507,7 +526,7 @@ julia> x = variable(Polynomial);
 
 julia> p = -1 + 254*x - 16129*x^2 + x^15;
 
-julia> ANewDsc(coeffs(p))  # ≈ 0.05 seconds; 
+julia> ANewDsc(coeffs(p))  # ≈ 0.05 seconds;
 There were 3 isolating intervals found:
 [0.75…, 4.25…]₅₃
 [0.00787401574803149653139…, 0.00787401574803149972047…]₂₁₂
@@ -541,7 +560,7 @@ julia> IntervalRootFinding.roots(x->p(x), IntervalArithmetic.Interval(0.0, 5.0))
 
 julia> @syms x::real # using SymPy
 
-julia> @time  rts = sympy.real_roots(p(x)); # correctly identifies 3. 
+julia> @time  rts = sympy.real_roots(p(x)); # correctly identifies 3.
   0.003896 seconds (518 allocations: 13.359 KiB)
 
 julia> sympy.N(rts[2]) # takes a long time! (162s)
@@ -550,15 +569,15 @@ julia> sympy.N(rts[2]) # takes a long time! (162s)
 
 The algorithm used is a partial implementation of one presented in:
 
-Computing Real Roots of Real Polynomials ... and now For Real!
+*Computing Real Roots of Real Polynomials ... and now For Real!*
 by Alexander Kobel, Fabrice Rouillier, Michael Sagraloff
-arXiv:1605.00410; DOI:	10.1145/2930889.2930937
+[arXiv](https://arXiv.org/1605.00410); [DOI:](https://doi.org/10.1145/2930889.2930937).
 
 and
 
-Computing real roots of real polynomials
+*Computing real roots of real polynomials*
 Michael Sagraloff, Kurt Mehlhorn
-https://doi.org/10.1016/j.jsc.2015.03.004
+[DOI:](https://doi.org/10.1016/j.jsc.2015.03.004)
 
 The algorithm relies on Descartes' rule of signs, which gives a bound
 on the number of positive real roots of a polynomial, `p(x)`. By
@@ -579,19 +598,17 @@ precision arithmetic, instead of exact arithmetic, to compute the
 Descartes' bound, in addition to other algorithmic improvements (not
 all implemented here).
 
-!!! Note
-
+!!! note
     A square free polynomial can be found through `p/gcd(p, p')`,
     though in practice this calculation is numerically unstable.
 
-!!! Note 
-
+!!! note
     This implementation is **much** slower than the `Hecke.roots`
     function provided through `arblib` in `Hecke.jl`, which itself
     says is not competitive with more specialized implementations,
     such as provided by the paper authors
     (http://anewdsc.mpi-inf.mpg.de/). There are several reasons: The
-    `mobius_transform!` function is 𝑶(n²), and could be 𝑶(n⋅log(n))
+    `mobius_transform!` function is `𝑶(n²)`, and could be `𝑶(n⋅log(n))`
     with more effort; the polynomial evaluation in `admissiblepoint`
     could, similarly, be made more efficient; despite using tricks
     learned from the `MutableArithmetics.jl` package to reduce
@@ -608,15 +625,15 @@ ANewDsc, refine_interval, refine_roots
 function ANewDsc(p::Container{<:Real}; root_bound=root_bound(p), max_depth=32)
 
     T = BigFloat
-    
+
     n = length(p) - 1
     iszero(n) && return State(𝐈{T}[],  𝐈{T}[], NTuple{n+1,eltype(p)}(p))
 
     max_depth *= ceil(Int, log2(n+2))
-    
+
     n′ = sum(divrem(n,2))
     p′ = [i*p[i+1] for i ∈ 1:n]
-    
+
     m′,M′ = T.(root_bound)
     I = 𝐈(m′, M′)
 
@@ -661,5 +678,3 @@ function ANewDsc(p::Container{<:Real}; root_bound=root_bound(p), max_depth=32)
     return State(Isol, Unresolved, NTuple{n+1,eltype(p)}(p))
 
 end
-
-
