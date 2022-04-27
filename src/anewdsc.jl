@@ -598,19 +598,17 @@ precision arithmetic, instead of exact arithmetic, to compute the
 Descartes' bound, in addition to other algorithmic improvements (not
 all implemented here).
 
-!!! Note
-
+!!! note
     A square free polynomial can be found through `p/gcd(p, p')`,
     though in practice this calculation is numerically unstable.
 
-!!! Note
-
+!!! note
     This implementation is **much** slower than the `Hecke.roots`
     function provided through `arblib` in `Hecke.jl`, which itself
     says is not competitive with more specialized implementations,
     such as provided by the paper authors
     (http://anewdsc.mpi-inf.mpg.de/). There are several reasons: The
-    `mobius_transform!` function is 𝑶(n²), and could be 𝑶(n⋅log(n))
+    `mobius_transform!` function is `𝑶(n²)`, and could be `𝑶(n⋅log(n))`
     with more effort; the polynomial evaluation in `admissiblepoint`
     could, similarly, be made more efficient; despite using tricks
     learned from the `MutableArithmetics.jl` package to reduce
