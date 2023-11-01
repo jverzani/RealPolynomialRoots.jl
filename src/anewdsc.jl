@@ -56,8 +56,10 @@ Mlog(x::T) where {T} = log2(max(one(T), abs(x)))
 
 ## Test if the interval 𝑰=[a,b] has a zero in it
 function zerotest(p, I)
+    isempty(p) && return false
     a,b = I
     a >= b && return true
+
     L′ = max(maximum(precision∘float, p), maximum(precision, (a,b)))
 
     ta, tb = tₐ(a,L′), tₐ(b,L′)
@@ -86,6 +88,7 @@ end
 
 ## test if the interval 𝑰 = [a,b] has exactly 1 root in it
 function onetest(p, I)
+    isempty(p) && return false
     a,b = I
     a >= b && return false
 
@@ -627,7 +630,7 @@ function ANewDsc(p::Container{<:Real}; root_bound=root_bound(p), max_depth=32)
     T = BigFloat
 
     n = length(p) - 1
-    iszero(n) && return State(𝐈{T}[],  𝐈{T}[], NTuple{n+1,eltype(p)}(p))
+    n <= 0 && return State{n+1,T,eltype(p)}(𝐈{T}[],  𝐈{T}[], NTuple{n+1,eltype(p)}(p))
 
     max_depth *= ceil(Int, log2(n+2))
 
