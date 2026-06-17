@@ -4,7 +4,7 @@
 """
     refine_roots(st::State)
 
-Return estimates for the isoloated roots using a bisection method due to Alefeld, Potra, and Shi.
+Return estimates for the isolated roots using a bisection method due to Alefeld, Potra, and Shi.
 """
 function refine_roots(st::State)
     λ = x -> evalpoly(x, st.p)
