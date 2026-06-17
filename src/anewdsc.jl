@@ -10,7 +10,7 @@
 
 ## ---- Admissible point
 
-# psuedo admissible point uses randomization to cut down number of operations
+# pseudo admissible point uses randomization to cut down number of operations
 #
 # This simple function allocates too much:
 # * the evalpoly call allocates
@@ -412,7 +412,7 @@ end
     refine_roots(st::State)
 
 A method to find isolating intervals for the real roots of a
-square-free polynomial specified by the cofficients stored in `p`.
+square-free polynomial specified by the coefficients stored in `p`.
 
 * `p`: the polynomial coefficients, `[a₀, a₁, …, aₙ]`, of a **square-free** polynomial.
 * `root_bound`: a lower bound and upper bound for the real roots.

@@ -79,7 +79,7 @@ jobs:
         run: |
           using Documenter: DocMeta, doctest
           using RealPolynomialRoots
-          DocMeta.setdocmeta!(RealPolynomialRoots, :DocTestSetup, :(using Roots); recursive=true)
+          DocMeta.setdocmeta!(RealPolynomialRoots, :DocTestSetup, :(using RealPolynomialRoots); recursive=true)
           doctest(Roots)
       - uses: julia-actions/julia-buildpkg@v1
       - name: Deploy
