@@ -408,7 +408,6 @@ end
 
 """
     ANewDsc(p; root_bound=(lowerbound(p), upperbound(p)), max_depth=96)
-    refine_interval(p, a, b, L)
     refine_roots(st::State)
 
 A method to find isolating intervals for the real roots of a
@@ -501,18 +500,7 @@ There were 15 isolating intervals found:
 
 ## Refinement
 
-The `refine_interval` method can be used to refine an interval to have
-width smaller than ``2^{-L}`` where `L` may be specified, but
-otherwise comes from the intervals precision.
-
-Alternatively, a package like `Roots` could be used; e.g:
-`[find_zero(st, I) for I ∈ st]` (where `st` is a `State` object
-returned by `ANewDsc`). If refinement over `Float64` values is desired
-and appropriate given the root separation, then that call can be
-modified, as with `[find_zero(st, Float64.(I)) for I ∈ st]`. (This
-should produce roots with a sign change between `nextfloat` and
-`prevfloat`.)
-
+The `refine_roots` method for the state object uses a bisection method to identify the roots.
 
 ## Comparisons
 
@@ -624,7 +612,7 @@ all implemented here).
     and Sagraloff are not implemented; etc.
 
 """
-ANewDsc, refine_interval, refine_roots
+ANewDsc, refine_roots
 
 function ANewDsc(p::Container{<:Real}; root_bound=root_bound(p), max_depth=32)
 

@@ -1,6 +1,11 @@
 # -----
 ## refinement
 
+"""
+    refine_roots(st::State)
+
+Return estimates for the isoloated roots using a bisection method due to Alefeld, Potra, and Shi.
+"""
 function refine_roots(st::State)
     λ = x -> evalpoly(x, st.p)
     [a42(λ, Tuple(I)) for I in st]
