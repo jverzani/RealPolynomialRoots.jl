@@ -10,7 +10,7 @@
 
 ## ---- Admissible point
 
-# psuedo admissible point uses randomization to cut down number of operations
+# pseudo admissible point uses randomization to cut down number of operations
 #
 # This simple function allocates too much:
 # * the evalpoly call allocates
@@ -77,6 +77,7 @@ function zerotest(p, I)
     𝐪 = ball.(deepcopy.(p), ϵ)
     bnda = descartesbound!(𝐪, 𝐚, 𝐦, L)
     !iszero(bnda) && return false
+
 
     ball!.(𝐪, p, ϵ)
     bndb = descartesbound!(𝐪, 𝐦, 𝐛, L)
@@ -407,11 +408,10 @@ end
 
 """
     ANewDsc(p; root_bound=(lowerbound(p), upperbound(p)), max_depth=96)
-    refine_interval(p, a, b, L)
     refine_roots(st::State)
 
 A method to find isolating intervals for the real roots of a
-square-free polynomial specified by the cofficients stored in `p`.
+square-free polynomial specified by the coefficients stored in `p`.
 
 * `p`: the polynomial coefficients, `[a₀, a₁, …, aₙ]`, of a **square-free** polynomial.
 * `root_bound`: a lower bound and upper bound for the real roots.
@@ -500,18 +500,7 @@ There were 15 isolating intervals found:
 
 ## Refinement
 
-The `refine_interval` method can be used to refine an interval to have
-width smaller than ``2^{-L}`` where `L` may be specified, but
-otherwise comes from the intervals precision.
-
-Alternatively, a package like `Roots` could be used; e.g:
-`[find_zero(st, I) for I ∈ st]` (where `st` is a `State` object
-returned by `ANewDsc`). If refinement over `Float64` values is desired
-and appropriate given the root separation, then that call can be
-modified, as with `[find_zero(st, Float64.(I)) for I ∈ st]`. (This
-should produce roots with a sign change between `nextfloat` and
-`prevfloat`.)
-
+The `refine_roots` method for the state object uses a bisection method to identify the roots.
 
 ## Comparisons
 
@@ -623,7 +612,7 @@ all implemented here).
     and Sagraloff are not implemented; etc.
 
 """
-ANewDsc, refine_interval, refine_roots
+ANewDsc, refine_roots
 
 function ANewDsc(p::Container{<:Real}; root_bound=root_bound(p), max_depth=32)
 

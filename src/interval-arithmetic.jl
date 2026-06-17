@@ -1,4 +1,4 @@
-## lightweight IntervalArithemetic over BigFloat following paper
+## lightweight IntervalArithmetic over BigFloat following paper
 ## (https://arxiv.org/pdf/1104.1362.pdf) on root refinement
 ## https://github.com/JuliaIntervals/IntervalArithmetic.jl is the
 ## proper source for such calculations
@@ -13,7 +13,7 @@ function Base.iterate(I::𝐈, state=nothing)
     isnothing(state) && return (I.lo, 1)
     isone(state) && return (I.hi, 2)
     return nothing
-end        
+end
 
 function Base.show(io::IO, I::𝐈)
     a, b = I
@@ -23,7 +23,7 @@ function Base.show(io::IO, I::𝐈)
     w <= 0 && (print(io, "{$a}"); return nothing)
     L′ = max(0, ceil(Int, -log2(b-a))) + 5
     ds = ceil(Int, -log10(b-a)) + 5
-    
+
     sbs = ("₋","","","₀","₁","₂","₃","₄","₅","₆","₇","₈","₉")
     iob = IOBuffer()
     for i in string(L)
@@ -111,7 +111,7 @@ function radd!(a::𝐈, b::𝐈)
     d₂,u₂ = b.lo, b.hi
     T = BigFloat
     radd!(d₁, d₂, RoundDown)
-    radd!(u₁, u₂, RoundUp)    
+    radd!(u₁, u₂, RoundUp)
 end
 
 function radd!(a::𝐈, b::Number)
@@ -135,7 +135,7 @@ function p(a::𝐈, b::𝐈)
 end
 
 
-# right multiplication a <- a*b; 
+# right multiplication a <- a*b;
 # needs three BigFloat numbers to be non-allocating
 # working, d, u make non-allocating
 function LinearAlgebra.rmul!(a::𝐈, b::𝐈, working′=nothing, d′=nothing, u′=nothing) # working a bigplot
@@ -149,12 +149,12 @@ function LinearAlgebra.rmul!(a::𝐈, b::𝐈, working′=nothing, d′=nothing,
 
 
 
-    
+
     set!(d, d₁); set!(u, d₁)
     rmul!(d, d₂, RoundDown); rmul!(u, d₂, RoundUp)
-    
-    
-    set!(working, u₁) 
+
+
+    set!(working, u₁)
     rmul!(working, u₂, RoundDown)
     min!(d, working)
 
@@ -188,13 +188,13 @@ function LinearAlgebra.rmul!(a::𝐈, b::Number)
     T = BigFloat
     rmul!(a.lo, b, RoundDown)
     rmul!(a.hi, b, RoundUp)
-    
+
     if b < 0
         tmp = a.lo
         set!(a.lo, a.hi)
         set!(a.hi, tmp)
     end
-    
+
     a
 end
 
@@ -206,7 +206,7 @@ function inv!(b::𝐈)
     set!(b.hi, rdiv!(T(1,precision=L), c, RoundUp))
     b
 end
-    
+
 function LinearAlgebra.rdiv!(a::𝐈, b::𝐈)
     c = deepcopy(b)
     inv!(c)
