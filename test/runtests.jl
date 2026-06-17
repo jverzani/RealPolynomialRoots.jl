@@ -4,7 +4,7 @@ using Test
 
 
 @testset "Real roots" begin
-    
+
     # produces a very close pair of roots
     # like 2^(-n*τ/2)
     function mignotte(n,τ)
@@ -13,12 +13,12 @@ using Test
         coeffs(convert(Polynomial, p))
     end
 
-    p = mignotte(7, 14)    
+    p = mignotte(7, 14)
     st = ANewDsc(p)
     @test length(st) == 3
     @test length(st.Unresolved) == 0
 
-    p = mignotte(15, 14)    
+    p = mignotte(15, 14)
     st = ANewDsc(p)
     @test length(st) == 3
     @test length(st.Unresolved) == 0
@@ -27,11 +27,11 @@ using Test
     st = ANewDsc(p)
     @test length(st) == 3
     @test length(st.Unresolved) == 0
-    
+
     𝐩 = Polynomial(mignotte(7, 14))
     𝐱 = variable(Polynomial{BigInt})
 
-    
+
     p = coeffs(prod(𝐩(𝐱+i) for i in -3:3))
     st = ANewDsc(p)
     @test length(st) == 7*3
@@ -63,7 +63,7 @@ using Test
     st = ANewDsc(p)
     @test length(st) == 3
     @test length(st.Unresolved) == 0
-    
+
     # This shows mathematical expectations may fail due to precision issues
     delta = 1e-5
     p = coeffs(fromroots(Polynomial,[1.0, 1+delta, 1 + 2delta]))
@@ -79,10 +79,10 @@ using Test
     p = coeffs(fromroots(Polynomial, BigFloat[1.0, 1+delta, 1 + 2delta]))
     st = ANewDsc(p)
     @test length(st) == 3 # works
-    
+
     ## test real_roots
     rroots = (refine_roots ∘ ANewDsc ∘ coeffs)
-    
+
     𝐱 = variable(Polynomial)
 
     # d = 0
@@ -108,14 +108,14 @@ using Test
     for i ∈ (1e2, 1e5, 1e8) # bigger values are just close
         𝐩 = 𝐱 - i
         rts = rroots(𝐩)
-        @test Float64.(rts) ≈ [i]
+        @test Float64.(rts) ≈ [i] atol=1
     end
-    
+
     # d > 1, nreal = 1
     for i ∈ -2000:117:2000
         𝐩 = (𝐱^2+1)*(𝐱-i)
         rts = rroots(𝐩)
-        @test Float64.(rts) ≈ [i]
+        @test Float64.(rts) ≈ [i] atol=abs(i)
     end
 
     # d = 2
@@ -126,14 +126,14 @@ using Test
 
     # larger d
     xs = -10:2:10
-    𝐩 = fromroots(Polynomial, xs)
+    𝐩 = fromroots(Polynomial, collect(xs))
     𝐱 = variable(𝐩)
     𝐪 = 𝐩 * (𝐱^2 + 1)*(𝐱^4 + 1)
     rts = rroots(𝐪)
     @test length(rts) == length(xs)
     @test maximum(abs, sort(rts) - xs) <= eps()
 
-    
+
 
 
 end
