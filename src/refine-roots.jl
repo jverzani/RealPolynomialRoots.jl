@@ -1,4 +1,4 @@
-## -----
+# -----
 ## refinement
 
 function refine_roots(st::State)
@@ -129,8 +129,8 @@ end
 
 # iterative quadratic solution to P(x) = 0 where P=f(a) + f[a,b]*(x-a) + f[a,b,d]*(x-a)*(x-b)
 function newton_quadratic(a, b, d, fa, fb, fd, k::Int)
-    A = f_abd(a, b, d, fa, fb, fd)
-    B = f_ab(a, b, fa, fb)
+    A = _fabd(a, b, d, fa, fb, fd)
+    B = _fab(a, b, fa, fb)
 
     (iszero(A) || !isfinite(A)) && return a - fa / B
 
@@ -146,11 +146,11 @@ function newton_quadratic(a, b, d, fa, fb, fd, k::Int)
 end
 
 # f[a, b] divided differences
-@inline f_ab(a, b, fa, fb) = (fb - fa) / (b - a)
+@inline _fab(a, b, fa, fb) = (fb - fa) / (b - a)
 
 # f[a,b,d]
-@inline function f_abd(a, b, d, fa, fb, fd)
-    fab, fbd = f_ab(a, b, fa, fb), f_ab(b, d, fb, fd)
+@inline function _fabd(a, b, d, fa, fb, fd)
+    fab, fbd = _fab(a, b, fa, fb), _fab(b, d, fb, fd)
     (fbd - fab) / (d - a)
 end
 
