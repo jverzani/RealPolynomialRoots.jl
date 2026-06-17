@@ -21,8 +21,8 @@ function refine_interval(p, a, b, L=min(53,maximum(precision, (a,b))))
         if bisect_depth > 64
             return I
         end
-        
-        val, J = newtontest(p, p′, I, N)   
+
+        val, J = newtontest(p, p′, I, N)
         if val
             diff(J) < ϵ  && return J
             λ = diff(I)/diff(J)
@@ -32,20 +32,21 @@ function refine_interval(p, a, b, L=min(53,maximum(precision, (a,b))))
         end
 
         val, J = boundarytest(p, I, N)
-        if val
+        if false #val
+            # XXX this was failing
             diff(J) < ϵ  && return J
             I = J
             continue
         end
 
         Iₗ, Iᵣ = bisect_interval(p, I, n′, L)
-        
+
         val = signtest(p, Iₗ)
         if val == nothing
             val = signtest(p, Iᵣ)
             val != nothing && (val = !val)
         end
-        
+
         if val == nothing
             dₗ,dᵣ = diff(Iₗ), diff(Iᵣ)
             if dₗ <= dᵣ
@@ -66,6 +67,3 @@ end
 
 # refine intervals to size `L`, return midpoint
 refine_roots(st::State) = midpoint.(refine_interval(st.p, I...) for I ∈ st)
-
-
-

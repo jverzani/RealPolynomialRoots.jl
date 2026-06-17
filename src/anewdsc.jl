@@ -78,6 +78,7 @@ function zerotest(p, I)
     bnda = descartesbound!(𝐪, 𝐚, 𝐦, L)
     !iszero(bnda) && return false
 
+
     ball!.(𝐪, p, ϵ)
     bndb = descartesbound!(𝐪, 𝐦, 𝐛, L)
     iszero(bndb) && return true
