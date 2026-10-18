@@ -1,16 +1,47 @@
 using RealPolynomialRoots
-using Polynomials
 using Test
 
+# Minimal helpers for coefficient vectors [a₀, a₁, …, aₙ] (ascending order)
+function pmul(p, q)
+    T = promote_type(eltype(p), eltype(q))
+    r = zeros(T, length(p) + length(q) - 1)
+    for (i, a) in enumerate(p), (j, b) in enumerate(q)
+        r[i+j-1] += a * b
+    end
+    r
+end
+
+function padd(p, q)
+    T = promote_type(eltype(p), eltype(q))
+    r = zeros(T, max(length(p), length(q)))
+    r[1:length(p)] .+= p
+    r[1:length(q)] .+= q
+    r
+end
+
+# coefficients of (x - r₁)(x - r₂)⋯(x - rₙ)
+fromroots(rs) = foldl((p, r) -> pmul(p, [-r, one(r)]), rs; init=[one(eltype(rs))])
+
+# coefficients of p(x + c), by Horner's method
+function pshift(p, c)
+    r = [p[end]]
+    for a in reverse(p[1:end-1])
+        r = padd(pmul(r, [c, one(c)]), [a])
+    end
+    r
+end
 
 @testset "Real roots" begin
 
     # produces a very close pair of roots
     # like 2^(-n*τ/2)
+    # x^n - ((2^(τ÷2) - 1)x - 1)^2
     function mignotte(n,τ)
-        x = variable(SparsePolynomial)
-        p = x^n - ((2^(τ ÷ 2)-1)*x - 1)^2
-        coeffs(convert(Polynomial, p))
+        a = 2^(τ ÷ 2) - 1
+        p = zeros(Int, n + 1)
+        p[end] = 1
+        p[1:3] .-= [1, -2a, a^2]
+        p
     end
 
     p = mignotte(7, 14)
@@ -28,25 +59,21 @@ using Test
     @test length(st) == 3
     @test length(st.Unresolved) == 0
 
-    𝐩 = Polynomial(mignotte(7, 14))
-    𝐱 = variable(Polynomial{BigInt})
+    𝐩 = mignotte(7, 14)
 
-
-    p = coeffs(prod(𝐩(𝐱+i) for i in -3:3))
+    p = reduce(pmul, (pshift(big.(𝐩), big(i)) for i in -3:3))
     st = ANewDsc(p)
     @test length(st) == 7*3
     @test length(st.Unresolved) == 0
 
-    𝐪 = 𝐩 * prod(𝐱^2 + i for i in 1:10)
-    p = coeffs(𝐪)
+    p = reduce(pmul, ([i, 0, 1] for i in 1:10); init=𝐩)
     st = ANewDsc(p)
     @test length(st) == 3
     @test length(st.Unresolved) == 0
 
     N = 50
     ps = [big(i)/N for i in 1:N]
-    𝐩 = fromroots(Polynomial, ps);
-    p = coeffs(𝐩)
+    p = fromroots(ps)
     st = ANewDsc(p)
     @test length(st) == 50
     @test length(st.Unresolved) == 0
@@ -55,85 +82,78 @@ using Test
     # that they theoretically might expect to have due to round
     # off.
     # This passes with ^30
-    𝐩 = setprecision(256) do
+    p = setprecision(256) do
         delta = 1/big(10)^30
-        fromroots(Polynomial,[1.0, 1+delta, 1 + 2delta])
+        fromroots([1.0, 1+delta, 1 + 2delta])
     end
-    p = coeffs(𝐩)
     st = ANewDsc(p)
     @test length(st) == 3
     @test length(st.Unresolved) == 0
 
     # This shows mathematical expectations may fail due to precision issues
     delta = 1e-5
-    p = coeffs(fromroots(Polynomial,[1.0, 1+delta, 1 + 2delta]))
+    p = fromroots([1.0, 1+delta, 1 + 2delta])
     st = ANewDsc(p)
     @test length(st) == 3 # works
 
     delta = 1e-8
-    p = coeffs(fromroots(Polynomial,[1.0, 1+delta, 1 + 2delta]))
+    p = fromroots([1.0, 1+delta, 1 + 2delta])
     st = ANewDsc(p)
     @test_broken length(st) == 3 # doesn't to find 3
 
     delta = 1e-8
-    p = coeffs(fromroots(Polynomial, BigFloat[1.0, 1+delta, 1 + 2delta]))
+    p = fromroots(BigFloat[1.0, 1+delta, 1 + 2delta])
     st = ANewDsc(p)
     @test length(st) == 3 # works
 
     ## test real_roots
-    rroots = (refine_roots ∘ ANewDsc ∘ coeffs)
-
-    𝐱 = variable(Polynomial)
+    rroots = (refine_roots ∘ ANewDsc)
 
     # d = 0
-    𝐩 = zero(𝐱)
-    rts = rroots(𝐩)
+    p = [0.0]
+    rts = rroots(p)
     @test isempty(rts)
 
-    𝐩 = one(𝐱)
-    rts = rroots(𝐩)
+    p = [1.0]
+    rts = rroots(p)
     @test isempty(rts)
 
 
     # d = 1
 
-    𝐩 = 𝐱
-    rts = rroots(𝐩)
+    p = [0.0, 1.0]
+    rts = rroots(p)
     @test length(rts) == 1 && abs(rts[1]) <= eps()
 
-    𝐩 = 𝐱 + 1
-    rts = rroots(𝐩)
+    p = [1.0, 1.0]
+    rts = rroots(p)
     @test Float64.(rts) ≈ [-1]
 
     for i ∈ (1e2, 1e5, 1e8) # bigger values are just close
-        𝐩 = 𝐱 - i
-        rts = rroots(𝐩)
+        p = [-i, 1.0]
+        rts = rroots(p)
         @test Float64.(rts) ≈ [i] atol=1
     end
 
     # d > 1, nreal = 1
     for i ∈ -2000:117:2000
-        𝐩 = (𝐱^2+1)*(𝐱-i)
-        rts = rroots(𝐩)
+        p = pmul([1.0, 0.0, 1.0], [-i, 1.0])
+        rts = rroots(p)
         @test Float64.(rts) ≈ [i] atol=abs(i)
     end
 
     # d = 2
-    𝐩 = 𝐱*(𝐱-1)
-    rts = rroots(𝐩)
+    p = [0.0, -1.0, 1.0]
+    rts = rroots(p)
     @test sort(Float64.(rts)) ≈ [0,1]
 
 
     # larger d
     xs = -10:2:10
-    𝐩 = fromroots(Polynomial, collect(xs))
-    𝐱 = variable(𝐩)
-    𝐪 = 𝐩 * (𝐱^2 + 1)*(𝐱^4 + 1)
-    rts = rroots(𝐪)
+    p = fromroots(collect(xs))
+    q = pmul(pmul(p, [1, 0, 1]), [1, 0, 0, 0, 1])
+    rts = rroots(q)
     @test length(rts) == length(xs)
     @test maximum(abs, sort(rts) - xs) <= eps()
-
-
-
 
 end
