@@ -5,6 +5,9 @@
 ## more than is desirable.
 
 
+# `Base.MPFR.libmpfr` was added in Julia 1.9
+const libmpfr = isdefined(Base.MPFR, :libmpfr) ? Base.MPFR.libmpfr : :libmpfr
+
 # for more generic uses
 Big(a;precision=53) = BigFloat(a; precision=precision)
 
@@ -20,7 +23,7 @@ precision(x::BigFloat) = Int(Base.MPFR.precision(x))
 # as it means many more allocations because we must create new
 # BigFloat values every time the precision is changes
 set_prec!(x::BigFloat,n::Int) = ccall(
-    (:mpfr_set_prec, :libmpfr),
+    (:mpfr_set_prec, libmpfr),
     Cvoid,
     (Ref{BigFloat}, Cint, Base.MPFR.MPFRRoundingMode),
     x,Cint(n), Base.MPFR.ROUNDING_MODE[]
@@ -29,7 +32,7 @@ set_prec!(x::BigFloat,n::Int) = ccall(
 # this is copy!(y, x)
 # we can not use `set_prec` to set precision though
 set!(y::BigFloat, x, rnd=Base.MPFR.ROUNDING_MODE[]) = ccall(
-    (:mpfr_set, :libmpfr),
+    (:mpfr_set, libmpfr),
     Int32,
     (Ref{BigFloat}, Ref{BigFloat}, Base.MPFR.MPFRRoundingMode),
     y, x, rnd
@@ -38,7 +41,7 @@ zero!(a::BigFloat) = set!(a, 0)
 
 
 swap!(y::BigFloat,x::BigFloat) = ccall(
-    (:mpfr_swap, :libmpfr),
+    (:mpfr_swap, libmpfr),
     Cvoid,
     (Ref{BigFloat}, Ref{BigFloat}),
     y, x
@@ -47,7 +50,7 @@ swap!(y::BigFloat,x::BigFloat) = ccall(
 # in place +,-,*./
 function radd!(a::BigFloat, b::BigFloat, rnd=Base.MPFR.ROUNDING_MODE[])
     ccall(
-        (:mpfr_add, :libmpfr),
+        (:mpfr_add, libmpfr),
         Int32,
         (Ref{BigFloat}, Ref{BigFloat}, Ref{BigFloat}, Base.MPFR.MPFRRoundingMode),
         a,a,b, rnd
@@ -57,7 +60,7 @@ end
 
 function rsub!(a::BigFloat, b::BigFloat, rnd=Base.MPFR.ROUNDING_MODE[])
     ccall(
-        (:mpfr_sub, :libmpfr),
+        (:mpfr_sub, libmpfr),
         Int32,
         (Ref{BigFloat}, Ref{BigFloat}, Ref{BigFloat}, Base.MPFR.MPFRRoundingMode),
         a,a,b, rnd
@@ -67,7 +70,7 @@ end
 
 function LinearAlgebra.rmul!(a::BigFloat, b::Number, rnd=Base.MPFR.ROUNDING_MODE[])
     ccall(
-        (:mpfr_mul, :libmpfr),
+        (:mpfr_mul, libmpfr),
         Int32,
         (Ref{BigFloat}, Ref{BigFloat}, Ref{BigFloat}, Base.MPFR.MPFRRoundingMode),
         a,a,b, rnd
@@ -77,7 +80,7 @@ end
 
 function LinearAlgebra.rdiv!(a::BigFloat, b::BigFloat, rnd=Base.MPFR.ROUNDING_MODE[])
     ccall(
-        (:mpfr_div, :libmpfr),
+        (:mpfr_div, libmpfr),
         Int32,
         (Ref{BigFloat}, Ref{BigFloat}, Ref{BigFloat}, Base.MPFR.MPFRRoundingMode),
         a,a,b, rnd
