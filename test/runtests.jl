@@ -2,7 +2,7 @@ using RealPolynomialRoots
 using Test
 
 # Minimal helpers for coefficient vectors [a₀, a₁, …, aₙ] (ascending order)
-function pmul(p, q)
+function polymul(p, q)
     T = promote_type(eltype(p), eltype(q))
     r = zeros(T, length(p) + length(q) - 1)
     for (i, a) in enumerate(p), (j, b) in enumerate(q)
@@ -11,7 +11,7 @@ function pmul(p, q)
     r
 end
 
-function padd(p, q)
+function polyadd(p, q)
     T = promote_type(eltype(p), eltype(q))
     r = zeros(T, max(length(p), length(q)))
     r[1:length(p)] .+= p
@@ -20,13 +20,13 @@ function padd(p, q)
 end
 
 # coefficients of (x - r₁)(x - r₂)⋯(x - rₙ)
-fromroots(rs) = foldl((p, r) -> pmul(p, [-r, one(r)]), rs; init=[one(eltype(rs))])
+fromroots(rs) = foldl((p, r) -> polymul(p, [-r, one(r)]), rs; init=[one(eltype(rs))])
 
 # coefficients of p(x + c), by Horner's method
 function pshift(p, c)
     r = [p[end]]
     for a in reverse(p[1:end-1])
-        r = padd(pmul(r, [c, one(c)]), [a])
+        r = polyadd(polymul(r, [c, one(c)]), [a])
     end
     r
 end
@@ -61,12 +61,12 @@ end
 
     𝐩 = mignotte(7, 14)
 
-    p = reduce(pmul, (pshift(big.(𝐩), big(i)) for i in -3:3))
+    p = reduce(polymul, (pshift(big.(𝐩), big(i)) for i in -3:3))
     st = ANewDsc(p)
     @test length(st) == 7*3
     @test length(st.Unresolved) == 0
 
-    p = reduce(pmul, ([i, 0, 1] for i in 1:10); init=𝐩)
+    p = reduce(polymul, ([i, 0, 1] for i in 1:10); init=𝐩)
     st = ANewDsc(p)
     @test length(st) == 3
     @test length(st.Unresolved) == 0
@@ -137,7 +137,7 @@ end
 
     # d > 1, nreal = 1
     for i ∈ -2000:117:2000
-        p = pmul([1.0, 0.0, 1.0], [-i, 1.0])
+        p = polymul([1.0, 0.0, 1.0], [-i, 1.0])
         rts = rroots(p)
         @test Float64.(rts) ≈ [i] atol=abs(i)
     end
@@ -151,7 +151,7 @@ end
     # larger d
     xs = -10:2:10
     p = fromroots(collect(xs))
-    q = pmul(pmul(p, [1, 0, 1]), [1, 0, 0, 0, 1])
+    q = polymul(polymul(p, [1, 0, 1]), [1, 0, 0, 0, 1])
     rts = rroots(q)
     @test length(rts) == length(xs)
     @test maximum(abs, sort(rts) - xs) <= eps()
