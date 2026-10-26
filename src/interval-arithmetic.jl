@@ -51,13 +51,27 @@ end
 zero!(a::𝐈) = (zero!(a.lo); zero!(a.hi); nothing)
 precision(I::𝐈) = maximum(precision, I)
 
+# 𝐱 <- [x↓ - ϵ, x↑ + ϵ]; the directed roundings make this an enclosure
+# of x even when x is not representable at the precision of 𝐱
 function ball!(𝐱::𝐈, x, ϵ::BigFloat)
-    x′ = BigFloat(x, precision=precision(ϵ)) #deepcopy(x)
-    set!(𝐱.lo, x′, RoundDown)
+    _setdown!(𝐱.lo, x)
     rsub!(𝐱.lo, ϵ, RoundDown)
-    set!(𝐱.hi, x′, RoundUp)
+    _setup!(𝐱.hi, x)
     radd!(𝐱.hi, ϵ, RoundUp)
     𝐱
+end
+
+_setdown!(y::BigFloat, x::BigFloat) = set!(y, x, RoundDown)
+_setup!(y::BigFloat, x::BigFloat) = set!(y, x, RoundUp)
+# exact conversions to BigFloat for these
+_exactbig(x::Union{Float16, Float32, Float64}) = BigFloat(x, precision=53)
+_exactbig(x::Integer) = BigFloat(x, precision=max(64, ndigits(x, base=2)))
+for (f, dir) in ((:_setdown!, :prevfloat), (:_setup!, :nextfloat))
+    @eval begin
+        $f(y::BigFloat, x::Union{Integer, Float16, Float32, Float64}) = $f(y, _exactbig(x))
+        # otherwise round to nearest, then step one ulp outward
+        $f(y::BigFloat, x) = $f(y, $dir(BigFloat(x, precision=precision(y))))
+    end
 end
 
 function ball!(𝐱, x, L::Int)
@@ -150,36 +164,41 @@ function LinearAlgebra.rmul!(a::𝐈, b::𝐈, working′=nothing, d′=nothing,
 
 
 
-    set!(d, d₁); set!(u, d₁)
-    rmul!(d, d₂, RoundDown); rmul!(u, d₂, RoundUp)
+    # case analysis on signs; only when both intervals contain 0
+    # are more than 2 products needed
+    if d₁ >= 0
+        if d₂ >= 0
+            mul!(d, d₁, d₂, RoundDown); mul!(u, u₁, u₂, RoundUp)
+        elseif u₂ <= 0
+            mul!(d, u₁, d₂, RoundDown); mul!(u, d₁, u₂, RoundUp)
+        else
+            mul!(d, u₁, d₂, RoundDown); mul!(u, u₁, u₂, RoundUp)
+        end
+    elseif u₁ <= 0
+        if d₂ >= 0
+            mul!(d, d₁, u₂, RoundDown); mul!(u, u₁, d₂, RoundUp)
+        elseif u₂ <= 0
+            mul!(d, u₁, u₂, RoundDown); mul!(u, d₁, d₂, RoundUp)
+        else
+            mul!(d, d₁, u₂, RoundDown); mul!(u, d₁, d₂, RoundUp)
+        end
+    else
+        if d₂ >= 0
+            mul!(d, d₁, u₂, RoundDown); mul!(u, u₁, u₂, RoundUp)
+        elseif u₂ <= 0
+            mul!(d, u₁, d₂, RoundDown); mul!(u, d₁, d₂, RoundUp)
+        else
+            mul!(d, d₁, u₂, RoundDown)
+            mul!(working, u₁, d₂, RoundDown)
+            min!(d, working)
+            mul!(u, d₁, d₂, RoundUp)
+            mul!(working, u₁, u₂, RoundUp)
+            max!(u, working)
+        end
+    end
 
-
-    set!(working, u₁)
-    rmul!(working, u₂, RoundDown)
-    min!(d, working)
-
-    set!(working, u₁)
-    rmul!(working, d₂, RoundDown)
-    min!(d, working)
-
-    set!(working, d₁)
-    rmul!(working, u₂, RoundDown)
-    min!(d, working)
-
-    set!(working, d₁)
-    rmul!(working, u₂, RoundUp)
-    max!(u, working)
-
-    set!(working, u₁)
-    rmul!(working, d₂, RoundUp)
-    max!(u, working)
-
-    set!(working, u₁)
-    rmul!(working, u₂, RoundUp)
-    max!(u, working)
-
-    set!(d₁,d)
-    set!(u₁,u)
+    set!(d₁, d, RoundDown)
+    set!(u₁, u, RoundUp)
 
     a
 end

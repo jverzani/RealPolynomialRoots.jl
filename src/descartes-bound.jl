@@ -55,21 +55,30 @@ function taylor_shift!(ps::Container{T}, λ=one(T)) where {T<:𝐈}
     # if we could reset precision, would be nice to not construct
     # this each time...
     w,d,u = BigFloat(;precision=L),BigFloat(;precision=L),BigFloat(;precision=L)
-    dps = [ball(0, L) for _ ∈ 1:N]
-    taylor_shift!(ps, λ, dps, L, w, d, u)
+    taylor_shift!(ps, λ, ball(0, L), L, w, d, u)
 end
 
-function taylor_shift!(ps::Container{T}, λ, dps, L, w, d, u) where {T<:𝐈}
-
+# in place: pⱼ <- pⱼ + λ⋅pⱼ₊₁ sweeps; `tmp` is an interval used as storage
+function taylor_shift!(ps::Container{T}, λ, tmp, L, w, d, u) where {T<:𝐈}
     N = length(ps)
-    @inbounds for i in N:-1:1
-        for j in N:-1:2
-            j + i > N+1 && continue
-            muladd!(dps[j], λ, dps[j-1], w, d, u)
+    @inbounds for i in 1:N-1
+        for j in N-1:-1:i
+            copy!(tmp, ps[j+1])
+            rmul!(tmp, λ, w, d, u)
+            radd!(ps[j], tmp)
         end
-        muladd!(dps[1], λ, ps[i], w, d, u)
     end
-    copy!.(ps, dps)
+    return nothing
+end
+
+# p -> p(x + 1); only additions are needed
+function taylor_shift1!(ps::Container{T}) where {T<:𝐈}
+    N = length(ps)
+    @inbounds for i in 1:N-1
+        for j in N-1:-1:i
+            radd!(ps[j], ps[j+1])
+        end
+    end
     return nothing
 end
 
@@ -79,22 +88,22 @@ function mobius_transform!(p::Container{T}, a, b) where {T}
     
     L = max(precision(first(p)), precision(a), precision(b))
     w,d,u = BigFloat(;precision=L), BigFloat(;precision=L), BigFloat(;precision=L)
-    dps = [ball(0, L) for _ ∈ 1:length(p)]
+    tmp = ball(0, L)
     λ = ball(1, L)
-    
-    taylor_shift!(p, a, dps, L, w, d, u);  zero!.(dps)
+
+    taylor_shift!(p, a, tmp, L, w, d, u)
     scale!(p, (b-a), λ, w, d, u)
     reverse!(p)
-    taylor_shift!(p, one(T), dps, L, w, d, u)
+    taylor_shift1!(p)
     nothing
-end      
+end
 
 # basic structure of above without the storage setup to lessen allocations
 function _mobius_transform!(p::Container{T}, a, b) where {T}
     taylor_shift!(p, a)
     scale!(p, (b-a))
     reverse!(p)
-    taylor_shift!(p, one(T))
+    taylor_shift1!(p)
     nothing
 end      
 
@@ -108,6 +117,16 @@ function descartesbound(p, a::𝐈, b::𝐈, L::Int)
 end
 
 function descartesbound!(q, a::𝐈, b::𝐈, L::Int)
+    v, u, lead = descartesvar!(q, a, b, L)
+    v + lead
+end
+
+# Sign variations of the Möbius transform of `q` for [a,b] at precision L.
+# Returns (v, u, lead): `v` counts the variations among the coefficients
+# whose sign is certain, `u` the number of coefficients whose sign is
+# uncertain, and `lead` how many of those come before the first certain
+# one. The true number of sign variations lies in [v, v + 2u].
+function descartesvar!(q, a::𝐈, b::𝐈, L::Int)
     setprecision(L) do
 
         mobius_transform!(q, a, b)
@@ -115,21 +134,51 @@ function descartesbound!(q, a::𝐈, b::𝐈, L::Int)
         tol = epsᴸ(L) # 1/2^L
         tol_ = -tol
         i₀ = findfirst(q₀ -> q₀.hi <= tol_ || q₀.lo >= tol, q)
-        cnt = i₀-1 # count 0s
-        q₀ = q[i₀]
-        posflag = q₀.lo >= tol
+        i₀ == nothing && return (0, length(q), length(q))
+        posflag = q[i₀].lo >= tol
 
+        v = u = 0
         for i ∈ i₀:length(q)
-            copy!(q₀, q[i])
-            flag = q₀.lo >= tol ? true :
-                q₀.hi <= tol_ ? false : nothing
-            flag == nothing && continue # A "0"
+            qᵢ = q[i]
+            flag = qᵢ.lo >= tol ? true :
+                qᵢ.hi <= tol_ ? false : nothing
+            if flag == nothing # A "0"
+                u += 1
+                continue
+            end
             if posflag != flag
-                cnt += 1
+                v += 1
                 posflag = flag
             end
         end
-        cnt
+        (v, u + i₀ - 1, i₀ - 1)
+    end
+end
+
+# Descartes bounds for `p` on [a,m] and [m,b]. The working precision
+# starts at L₀ and doubles until the signs of all the transformed
+# coefficients are certain, or `done(va, vb)` reports that the
+# variations already found settle the test. At the worst-case precision
+# Lmax, coefficients of uncertain sign are treated as 0 (leading ones
+# count as a variation). Also returns the last precision used.
+function descartespair(p, a, m, b, L₀, Lmax, done)
+    L = min(L₀, Lmax)
+    while true
+        ϵ = epsᴸ(L)
+        𝐚, 𝐦, 𝐛 = ball.((a, m, b), ϵ)
+        𝐪 = [ball(pᵢ, ϵ) for pᵢ ∈ p]
+
+        va, ua, la = descartesvar!(𝐪, 𝐚, 𝐦, L)
+        if L < Lmax && done(va, 0)
+            return (va, 0, L)
+        end
+        ball!.(𝐪, p, ϵ)
+        vb, ub, lb = descartesvar!(𝐪, 𝐦, 𝐛, L)
+
+        L >= Lmax && return (va + la, vb + lb, L)
+        ua == ub == 0 && return (va, vb, L)
+        done(va, vb) && return (va, vb, L)
+        L = min(2L, Lmax)
     end
 end
 
