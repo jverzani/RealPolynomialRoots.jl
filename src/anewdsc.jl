@@ -338,7 +338,8 @@ function lowerbound(p)
     return -upperbound(q)
 end
 
-root_bound(p) = (lowerbound(p), upperbound(p))
+# BigFloat for both, as `upperbound` can return a Float64 or a BigFloat
+root_bound(p) = (BigFloat(lowerbound(p)), BigFloat(upperbound(p)))
 
 
 # Descartes bound on real roots in [0,oo) based on the sign changes
@@ -627,7 +628,7 @@ function ANewDsc(p::Container{<:Real}; root_bound=root_bound(p), max_depth=32)
     n′ = sum(divrem(n,2))
     p′ = [i*p[i+1] for i ∈ 1:n]
 
-    m′,M′ = T.(root_bound)
+    m′,M′ = T(first(root_bound)), T(last(root_bound)) # concretely typed
     I = 𝐈(m′, M′)
 
     Internal = [(I,1,1,L₀(n))] # interval, nᴵ, depth, starting precision
