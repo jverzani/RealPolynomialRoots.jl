@@ -54,11 +54,18 @@ Mlog(x::T) where {T} = log2(max(one(T), abs(x)))
 
 
 
+# starting precision for the Descartes tests; doubled as needed
+L₀(n) = max(64, 2n)
+
 ## Test if the interval 𝑰=[a,b] has a zero in it
-function zerotest(p, I)
-    isempty(p) && return false
+## `Lₛ` is a starting precision for the Descartes tests
+zerotest(p, I, Lₛ=nothing) = first(zerotestᴸ(p, I, Lₛ))
+
+# zerotest, also returning the precision the test settled at
+function zerotestᴸ(p, I, Lₛ=nothing)
+    isempty(p) && return (false, Lₛ)
     a,b = I
-    a >= b && return true
+    a >= b && return (true, Lₛ)
 
     L′ = max(maximum(precision∘float, p), maximum(precision, (a,b)))
 
@@ -71,27 +78,24 @@ function zerotest(p, I)
     L = ceil(Int, n + τ(p) + n * Mlog(a) + n * Mlog(b) + L′′)
 
     m = setprecision(() -> a + (b-a)/2, L)
-    ϵ = epsᴸ(L)
-    𝐚, 𝐦, 𝐛 = ball.((a,m,b), ϵ)
+    bnda, bndb, Lᵤ = descartespair(p, a, m, b, something(Lₛ, L₀(n)), L,
+                                   (va, vb) -> va + vb >= 1)
 
-    𝐪 = ball.(deepcopy.(p), ϵ)
-    bnda = descartesbound!(𝐪, 𝐚, 𝐦, L)
-    !iszero(bnda) && return false
-
-
-    ball!.(𝐪, p, ϵ)
-    bndb = descartesbound!(𝐪, 𝐦, 𝐛, L)
-    iszero(bndb) && return true
-
-    return false
+    return (iszero(bnda) && iszero(bndb), Lᵤ)
 
 end
 
 ## test if the interval 𝑰 = [a,b] has exactly 1 root in it
-function onetest(p, I)
-    isempty(p) && return false
+onetest(p, I) = first(zeroonetest(p, I)) == 1
+
+## combined 01-test: returns 0 (no root in 𝑰), 1 (exactly one root) or
+## `nothing` (undecided). The two Descartes bounds needed for the
+## 1-test also decide the 0-test. Also returns the precision the test
+## settled at, a starting point for tests on subintervals.
+function zeroonetest(p, I, Lₛ=nothing)
+    isempty(p) && return (0, Lₛ)
     a,b = I
-    a >= b && return false
+    a >= b && return (0, Lₛ)
 
     L′ = max(maximum(precision∘float, p), maximum(precision, (a,b)))
 
@@ -107,20 +111,15 @@ function onetest(p, I)
     L′′ = max(24, L′, max(1, -min(ta-1,tb-1, t-1)) + 4(n+2))
     L = ceil(Int, n + τ(p) + n * Mlog(a) + n * Mlog(b) + L′′)
 
-    ϵ = epsᴸ(L)
-    𝐚,𝐦,𝐛 = ball.((a ,mstar, b), ϵ)
-    𝐪 = ball.(deepcopy.(p), ϵ)
-
-    bnda = descartesbound!(𝐪, 𝐚, 𝐦, L)
-
-    ball!.(𝐪, p, ϵ)
-    bndb = descartesbound!(𝐪, 𝐦, 𝐛, L)
+    bnda, bndb, Lᵤ = descartespair(p, a, mstar, b, something(Lₛ, L₀(n)), L,
+                                   (va, vb) -> va + vb >= 2)
 
     (bnda == -1 || bndb == -1) && throw(ArgumentError("L not big enough for descartesbound"))
-    iszero(bnda) && isone(bndb) && return true
-    isone(bnda) && iszero(bndb) && return true
+    iszero(bnda) && iszero(bndb) && return (0, Lᵤ)
+    iszero(bnda) && isone(bndb) && return (1, Lᵤ)
+    isone(bnda) && iszero(bndb) && return (1, Lᵤ)
 
-    return false
+    return (nothing, Lᵤ)
 
 end
 
@@ -128,12 +127,13 @@ end
 # The newton test over I=[a,b] succeeds (informally) if:
 # * a cluster of k roots (k ≈ λ below) is in a smaller interval J=[c,d]
 # * there are no other roots nearby J
-# Success means a new interval with size ≈≤ w(I)/N is returned
+# Success means a new interval with size ≈≤ w(I)/N is returned, along
+# with the precision the last 0-test settled at
 # Lemma 20 has this condition on success
 # w(J) ≤ 2⁻¹³ w(I)/N
 # k roots are in the one-circe region of Δ(J)
 # the disk centered at m(I) with radius 2^(log(n)+10) * N * w(I) contains no other roots
-function newtontest(p, p′, I, nᴵ)
+function newtontest(p, p′, I, nᴵ, Lₛ=nothing)
 
     a, b = I
     nᴵ = min(5, nᴵ)
@@ -215,11 +215,12 @@ function newtontest(p, p′, I, nᴵ)
 
                     b-a < bᵢⱼᵅ - aᵢⱼᵅ && continue
 
-                    bnda = zerotest(p, (a,  aᵢⱼᵅ ))
-                    bndb = zerotest(p, (bᵢⱼᵅ, b))
+                    bnda, Lₛ = zerotestᴸ(p, (a,  aᵢⱼᵅ ), Lₛ)
+                    bnda || continue
+                    bndb, Lₛ = zerotestᴸ(p, (bᵢⱼᵅ, b), Lₛ)
 
                     if  bnda && bndb
-                        return true, 𝐈(aᵢⱼᵅ,  bᵢⱼᵅ)
+                        return true, 𝐈(aᵢⱼᵅ,  bᵢⱼᵅ), Lₛ
                     end
 
                 end
@@ -232,7 +233,7 @@ function newtontest(p, p′, I, nᴵ)
             L = 2L
         end
     end
-    return false, 𝐈(a,b)
+    return false, 𝐈(a,b), Lₛ
 
 end
 
@@ -242,7 +243,7 @@ end
 # return (true, J) can reduce interval with J ≈≤ w(I)/N
 # return (false, I) can't trim, use linear
 # no root in I should throw an error
-function boundarytest(p, I, nᴵ)
+function boundarytest(p, I, nᴵ, Lₛ=nothing)
     a, b = I
     nᴵ = min(5, nᴵ)
     N = 2^(2^nᴵ)
@@ -257,13 +258,13 @@ function boundarytest(p, I, nᴵ)
         w = b-a
         m = a + w/2
         mₗ, mᵣ = a + w/(2N), b - w/(2N)
-        w, m, mₗ, m
+        w, m, mₗ, mᵣ
     end
 
     ϵ′ = ϵ*w/N
     mₗ⁺, mᵣ⁺ = admissiblepoint(p, mₗ, ϵ′, n′), admissiblepoint(p, mᵣ, ϵ′, n′)
 
-    zₗ, zᵣ = zerotest(p, (mₗ⁺, b)), zerotest(p, (a, mᵣ⁺))
+    zₗ, zᵣ = zerotest(p, (mₗ⁺, b), Lₛ), zerotest(p, (a, mᵣ⁺), Lₛ)
     zₗ && zᵣ && return (false, 𝐈(a,b)) #error("No root in I $a, $mᵣ⁺, $mₗ⁺  $b")
     zₗ && return (true, 𝐈(a, mₗ⁺))
     zᵣ && return (true, 𝐈(mᵣ⁺, b))
@@ -337,7 +338,8 @@ function lowerbound(p)
     return -upperbound(q)
 end
 
-root_bound(p) = (lowerbound(p), upperbound(p))
+# BigFloat for both, as `upperbound` can return a Float64 or a BigFloat
+root_bound(p) = (BigFloat(lowerbound(p)), BigFloat(upperbound(p)))
 
 
 # Descartes bound on real roots in [0,oo) based on the sign changes
@@ -626,44 +628,45 @@ function ANewDsc(p::Container{<:Real}; root_bound=root_bound(p), max_depth=32)
     n′ = sum(divrem(n,2))
     p′ = [i*p[i+1] for i ∈ 1:n]
 
-    m′,M′ = T.(root_bound)
+    m′,M′ = T(first(root_bound)), T(last(root_bound)) # concretely typed
     I = 𝐈(m′, M′)
 
-    Internal = [(I,1,1)]
+    Internal = [(I,1,1,L₀(n))] # interval, nᴵ, depth, starting precision
     Isol = 𝐈{T}[]
     Unresolved = 𝐈{T}[]
     ctr = [0,0,0]
     while !isempty(Internal)
 
-        I, nᴵ, depth = pop!(Internal)
+        I, nᴵ, depth, Lₛ = pop!(Internal)
         depth += 1
         L = precision(I)
 
         # 01-test is decisive
-        zerotest(p, I) && continue
-        onetest(p, I) && (push!(Isol, I); continue)
+        k, Lₛ = zeroonetest(p, I, Lₛ)
+        k == 0 && continue
+        k == 1 && (push!(Isol, I); continue)
 
         ## pump the brakes, if needed, otherwise can go on and on in a newtonstep
         ## with non-square input
         depth >= 10max_depth && (push!(Unresolved, I); continue)
 
         # shrink or divide;
-        val, J = newtontest(p, p′, I, nᴵ)
+        val, J, Lₛ = newtontest(p, p′, I, nᴵ, Lₛ)
         if val
-            push!(Internal, (J,nᴵ+1, depth))
+            push!(Internal, (J,nᴵ+1, depth, Lₛ))
             continue
         end
 
-        val, J = boundarytest(p, I, nᴵ)
+        val, J = boundarytest(p, I, nᴵ, Lₛ)
         if val
-            push!(Internal, (J,nᴵ,depth))
+            push!(Internal, (J,nᴵ,depth, Lₛ))
             continue
         end
 
         # bisection
         Iₗ,Iᵣ = bisect_interval(p, I, n′, L)
         nᴵ = max(0, nᴵ-1)
-        append!(Internal, ((Iₗ,nᴵ,depth), (Iᵣ,nᴵ,depth)))
+        append!(Internal, ((Iₗ,nᴵ,depth,Lₛ), (Iᵣ,nᴵ,depth,Lₛ)))
 
     end
 

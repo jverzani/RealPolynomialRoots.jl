@@ -88,6 +88,17 @@ function LinearAlgebra.rdiv!(a::BigFloat, b::BigFloat, rnd=Base.MPFR.ROUNDING_MO
     a
 end
 
+# r <- x*y
+function mul!(r::BigFloat, x::BigFloat, y::BigFloat, rnd=Base.MPFR.ROUNDING_MODE[])
+    ccall(
+        (:mpfr_mul, libmpfr),
+        Int32,
+        (Ref{BigFloat}, Ref{BigFloat}, Ref{BigFloat}, Base.MPFR.MPFRRoundingMode),
+        r, x, y, rnd
+    )
+    r
+end
+
 # a <- a*b+c
 function muladd!(a::T,b,c) where {T <: BigFloat}
     rmul!(a,b)

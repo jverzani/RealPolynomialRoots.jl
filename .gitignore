@@ -8,3 +8,7 @@ src/notes.jl
 test/benchmarks.json
 Manifest.toml
 TODO.md
+.DS_Store
+.idea/
+*.iml
+.vscode/
