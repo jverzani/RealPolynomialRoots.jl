@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>RealPolynomialRoots — RealPolynomialRoots</title>
-  <link rel="stylesheet" href="./assets/materialdocs.css?v=de09b5e1">
+  <link rel="stylesheet" href="./assets/materialdocs.css?v=d40f1755">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
   <meta name="title" content="RealPolynomialRoots — RealPolynomialRoots">
   <meta property="og:title" content="RealPolynomialRoots — RealPolynomialRoots">
@@ -65,9 +65,9 @@
       0
       0
       1</code><code class="language-julia-repl md-repl-part">julia&gt; ANewDsc(ps)</code><code class="nohighlight ansi md-repl-part">There were 3 isolating intervals found:
-[3.62…, 8.0…]₅₃
-[0.00787401571824…, 0.00787401639013…]₆₇
-[0.00787401503044…, 0.00787401571824…]₆₇</code></pre>
+[3.62…, 7.75…]₅₃
+[0.00787401564662…, 0.00787401611319…]₉₄
+[0.007874015208245…, 0.007874015646621…]₉₄</code></pre>
 </div>
 <div class="md-code-block">
 <button class="md-copy-btn" title="Copy to clipboard" aria-label="Copy code"><span class="md-copy-icon">⧉</span><span class="md-copy-feedback">Copied!</span></button>
@@ -88,40 +88,40 @@
                          8363912237256094118085070946083688310200625
                           740493466743082745510080711751444519503125
                            29215606371473169285018060091249259296875];</code><code class="language-julia-repl md-repl-part">julia&gt; ANewDsc(ps)</code><code class="nohighlight ansi md-repl-part">There were 15 isolating intervals found:
-[-0.041626…, -0.0066376…]₂₅₆
-[-0.076904…, -0.041626…]₂₅₆
-[-0.2197…, -0.07666…]₂₅₆
-[-0.3652…, -0.2197…]₂₅₆
-[-0.6562…, -0.3633…]₂₅₆
-[-0.9375…, -0.6562…]₂₅₆
-[-1.234…, -0.9375…]₂₅₆
-[-1.78…, -1.22…]₂₅₆
-[-2.062…, -1.781…]₂₅₆
-[-2.312…, -2.062…]₂₅₆
-[-2.88…, -2.38…]₂₅₆
-[-3.188…, -2.875…]₂₅₆
-[-3.438…, -3.188…]₂₅₆
-[-3.75…, -3.438…]₂₅₆
-[-4.0…, -3.75…]₂₅₆</code></pre>
+[-0.04565…, 0.03271…]₂₅₆
+[-0.1218…, -0.04565…]₂₅₆
+[-0.2695…, -0.1221…]₂₅₆
+[-0.4238…, -0.2695…]₂₅₆
+[-0.7266…, -0.4258…]₂₅₆
+[-1.031…, -0.7266…]₂₅₆
+[-1.344…, -1.031…]₂₅₆
+[-1.641…, -1.344…]₂₅₆
+[-1.938…, -1.641…]₂₅₆
+[-2.5…, -1.94…]₂₅₆
+[-2.812…, -2.531…]₂₅₆
+[-3.125…, -2.812…]₂₅₆
+[-3.406…, -3.125…]₂₅₆
+[-3.719…, -3.406…]₂₅₆
+[-4.38…, -3.75…]₂₅₆</code></pre>
 </div>
 <p>The <code class="md-code-inline">refine_roots</code> method refines the isolating intervals down to diameter <code class="md-code-inline">1/2^L</code> and then takes the midpoint:</p>
 <div class="md-code-block">
 <button class="md-copy-btn" title="Copy to clipboard" aria-label="Copy code"><span class="md-copy-icon">⧉</span><span class="md-copy-feedback">Copied!</span></button>
 <pre><code class="language-julia-repl md-repl-part">julia&gt; ps = [-1, 254, -16129, 0, 0, 0, 0, 1];</code><code class="language-julia-repl md-repl-part">julia&gt; (refine_roots ∘ ANewDsc)(ps)</code><code class="nohighlight ansi md-repl-part">3-element Vector{BigFloat}:
  6.939437409621392124436713492447610272200680501712185816507667632045076114762801
- 0.007874016089132754403608727898779727134193464194254785228308443233139694193981824
- 0.007874015406930341157555003028161633376551552518768059431667490175426147478997438</code></pre>
+ 0.007874016089132754403608727898779727134193464194254785228308443233139694194012321
+ 0.007874015406930341157555003028161633376551552518768059431667490175426147533310977</code></pre>
 </div>
 <p>The algorithm used is based on</p>
 <p><em>Computing Real Roots of Real Polynomials ... and now For Real!</em> by Alexander Kobel, Fabrice Rouillier, Michael Sagraloff (<a href="https://arXiv.org/1605.00410">arXiv</a>, <a href="https://doi.org/10.1145/2930889.2930937">DOI</a>).</p>
 <p>More detail on the algorithm is found in</p>
 <p><em>Computing real roots of real polynomials</em> Michael Sagraloff, Kurt Mehlhorn <a href="https://doi.org/10.1016/j.jsc.2015.03.004">DOI</a></p>
-<p>The performance of this implementation could be <strong>significantly</strong> improved upon: polynomials of degree 10,000 or more are tractable with the algorithm, but this implementation gets pretty sluggish on random polynomials of degree 250.</p>
+<p>The performance of this implementation could still be improved upon: polynomials of degree 10,000 or more are tractable with the algorithm, but this implementation takes around a second on random polynomials of degree 250, about a minute at degree 1000, and several minutes at degree 2000.</p>
 <h2 id="Reference" class="md-heading">Reference<a href="#Reference" class="md-heading-anchor" aria-label="Link to this section">#</a></h2>
 <div class="md-docstring" id="RealPolynomialRoots.ANewDsc">
 <div class="md-docstring-header">
 <h4 class="md-docstring-binding"><code>RealPolynomialRoots.ANewDsc</code></h4>
-<a class="md-docstring-source" href="https://github.com/jverzani/RealPolynomialRoots.jl/blob/0662bcb560e9434d072b69c7d886ce3bc88f0eed/src/anewdsc.jl#L411-L616" title="View source">source</a>
+<a class="md-docstring-source" href="https://github.com/jverzani/RealPolynomialRoots.jl/blob/bc42f64a41b2081671db79b2bfdb6b6e0e42020c/src/anewdsc.jl#L411-L616" title="View source">source</a>
 </div>
 <div class="md-docstring-content">
 <div class="md-code-block">
@@ -292,7 +292,7 @@ julia&gt; sympy.N(rts[2]) # takes a long time! (162s)
 <div class="md-docstring" id="RealPolynomialRoots.refine_roots">
 <div class="md-docstring-header">
 <h4 class="md-docstring-binding"><code>RealPolynomialRoots.refine_roots</code></h4>
-<a class="md-docstring-source" href="https://github.com/jverzani/RealPolynomialRoots.jl/blob/0662bcb560e9434d072b69c7d886ce3bc88f0eed/src/anewdsc.jl#L411-L616" title="View source">source</a>
+<a class="md-docstring-source" href="https://github.com/jverzani/RealPolynomialRoots.jl/blob/bc42f64a41b2081671db79b2bfdb6b6e0e42020c/src/anewdsc.jl#L411-L616" title="View source">source</a>
 </div>
 <div class="md-docstring-content">
 <div class="md-code-block">
@@ -463,7 +463,7 @@ julia&gt; sympy.N(rts[2]) # takes a long time! (162s)
 <div class="md-docstring" id="RealPolynomialRoots.refine_roots-Tuple{RealPolynomialRoots.State}">
 <div class="md-docstring-header">
 <h4 class="md-docstring-binding"><code>RealPolynomialRoots.refine_roots</code> — <span class="md-docstring-sig">Tuple{RealPolynomialRoots.State}</span></h4>
-<a class="md-docstring-source" href="https://github.com/jverzani/RealPolynomialRoots.jl/blob/0662bcb560e9434d072b69c7d886ce3bc88f0eed/src/refine-roots.jl#L4-L8" title="View source">source</a>
+<a class="md-docstring-source" href="https://github.com/jverzani/RealPolynomialRoots.jl/blob/bc42f64a41b2081671db79b2bfdb6b6e0e42020c/src/refine-roots.jl#L4-L8" title="View source">source</a>
 </div>
 <div class="md-docstring-content">
 <div class="md-code-block">
@@ -485,6 +485,6 @@ julia&gt; sympy.N(rts[2]) # takes a long time! (162s)
   <script>hljs.highlightAll();</script>
   <script src="./siteinfo.js"></script>
   <script src="./../versions.js"></script>
-  <script src="./assets/materialdocs.js?v=de09b5e1"></script>
+  <script src="./assets/materialdocs.js?v=d40f1755"></script>
 </body>
 </html>
