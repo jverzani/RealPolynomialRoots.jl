@@ -58,10 +58,11 @@ Michael Sagraloff, Kurt Mehlhorn
 
 
 
-The performance of this implementation could be **significantly**
-improved upon: polynomials of degree 10,000 or more are tractable with
-the algorithm, but this implementation gets pretty sluggish on random
-polynomials of degree 250.
+The performance of this implementation could still be improved upon:
+polynomials of degree 10,000 or more are tractable with the algorithm,
+but this implementation takes around a second on random polynomials of
+degree 250, about a minute at degree 1000, and several minutes at
+degree 2000.
 
 
 ## Reference
