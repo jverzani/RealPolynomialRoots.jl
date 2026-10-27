@@ -1,4 +1,5 @@
 using Documenter
+using MaterialDocs
 using RealPolynomialRoots
 
 
@@ -10,7 +11,7 @@ DocMeta.setdocmeta!(RealPolynomialRoots, :DocTestSetup, :(using RealPolynomialRo
 
 makedocs(
     sitename = "RealPolynomialRoots",
-    format = Documenter.HTML(ansicolor=true),
+    format = Material3(ansicolor=true, dark_mode=:toggle),
     modules = [RealPolynomialRoots]
 )
 
